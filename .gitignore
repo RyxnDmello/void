@@ -1,3 +1,6 @@
+# Test Workspace
+cmd/test/
+
 # Go Workspace
 go.work
 go.work.sum
