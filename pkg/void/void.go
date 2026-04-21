@@ -2,8 +2,6 @@ package void
 
 import (
 	"fmt"
-	"os"
-	"strings"
 )
 
 type Void struct {
@@ -16,40 +14,28 @@ func NewApp() *Void {
 	}
 }
 
-func (tree *Void) AddCommand(command *Command) *Void {
+func (void *Void) AddCommand(command *Command) *Void {
 	path := command.Path()
 
-	exists := tree.commands[path]
+	exists := void.commands[path]
 
 	if exists != nil {
 		panic("Command With Path Already Exists")
 	}
 
-	tree.commands[path] = command
+	void.commands[path] = command
 
-	return tree
+	return void
 }
 
-func (tree *Void) Run() error {
+func (void *Void) Run() error {
 	defer func() {
 		if recover := recover(); recover != nil {
 			fmt.Println(recover)
 		}
 	}()
 
-	args := os.Args[1:]
+	path, command, _ := resolveCommand(void)
 
-	var path strings.Builder
-
-	for _, arg := range args {
-		path.WriteString(arg)
-
-		command := tree.commands[path.String()]
-
-		if command != nil {
-			return NewContext(path.String(), command).Execute()
-		}
-	}
-
-	return CommandNotFound
+	return NewContext(path, command).Execute()
 }

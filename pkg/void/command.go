@@ -8,6 +8,7 @@ type Command struct {
 	path        []string
 	name        string
 	tagline     string
+	description string
 	enabled     bool
 	flags       []string
 	arguments   []string
@@ -16,28 +17,12 @@ type Command struct {
 	postExecute func(context *Context, arguments, flags []string) error
 }
 
-func NewPath(path string) ([]string, string) {
-	newPath := make([]string, 0)
-
-	parts := strings.SplitSeq(path, " ")
-
-	for part := range parts {
-		part = strings.ToLower(part)
-		part = strings.Trim(part, " ")
-		newPath = append(newPath, part)
-	}
-
-	newName := strings.Join(newPath, " ")
-
-	return newPath, newName
-}
-
-func NewCommand(path string) *Command {
-	newPath, newName := NewPath(path)
+func NewCommand() *Command {
+	path, name := resolveCommandPath()
 
 	return &Command{
-		path:      newPath,
-		name:      newName,
+		path:      path,
+		name:      name,
 		tagline:   "A command",
 		enabled:   true,
 		flags:     nil,
@@ -73,6 +58,15 @@ func (command *Command) Tagline() string {
 
 func (command *Command) SetTagline(tagline string) *Command {
 	command.tagline = tagline
+	return command
+}
+
+func (command *Command) Description() string {
+	return command.description
+}
+
+func (command *Command) SetDescription(description string) *Command {
+	command.description = description
 	return command
 }
 
