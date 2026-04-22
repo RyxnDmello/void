@@ -1,4 +1,4 @@
-package void
+package command
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/ryxndmello/void/errors"
 )
 
 var pattern = regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
@@ -15,19 +17,19 @@ func resolveFilePath() (string, error) {
 	workPath, err := filepath.Abs(".")
 
 	if err != nil {
-		return "", CommandNotFound
+		return "", errors.CommandNotFound
 	}
 
 	_, filePath, _, ok := runtime.Caller(3)
 
 	if !ok {
-		return "", CommandNotFound
+		return "", errors.CommandNotFound
 	}
 
 	valid := pattern.MatchString(filePath)
 
 	if !valid {
-		return "", CommandNotFound
+		return "", errors.CommandNotFound
 	}
 
 	filePath = path.Clean(filePath)
@@ -35,7 +37,7 @@ func resolveFilePath() (string, error) {
 	path, err := filepath.Rel(workPath, filePath)
 
 	if err != nil {
-		return "", CommandNotFound
+		return "", errors.CommandNotFound
 	}
 
 	parts := strings.Split(path, "\\commands\\")[1:]

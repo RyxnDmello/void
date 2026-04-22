@@ -1,4 +1,4 @@
-package void
+package errors
 
 import (
 	"errors"

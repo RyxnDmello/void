@@ -2,19 +2,26 @@ package void
 
 import (
 	"fmt"
+
+	"github.com/ryxndmello/void/command"
+	"github.com/ryxndmello/void/context"
 )
 
 type Void struct {
-	commands map[string]*Command
+	commands map[string]*command.Command
 }
 
 func NewApp() *Void {
 	return &Void{
-		commands: make(map[string]*Command),
+		commands: make(map[string]*command.Command),
 	}
 }
 
-func (void *Void) AddCommand(command *Command) *Void {
+func (void *Void) Commands() map[string]*command.Command {
+	return void.commands
+}
+
+func (void *Void) AddCommand(command *command.Command) *Void {
 	path := command.Path()
 
 	exists := void.commands[path]
@@ -35,7 +42,7 @@ func (void *Void) Run() error {
 		}
 	}()
 
-	path, command, _ := resolveCommand(void)
+	path, command, _ := resolveCommand(void.commands)
 
-	return NewContext(path, command).Execute()
+	return context.NewContext(path, command).Execute()
 }

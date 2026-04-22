@@ -3,12 +3,13 @@ package void
 import (
 	"os"
 	"strings"
+
+	"github.com/ryxndmello/void/command"
+	"github.com/ryxndmello/void/errors"
 )
 
-func resolveCommand(void *Void) (string, *Command, []string) {
+func resolveCommand(commands map[string]*command.Command) (string, *command.Command, []string) {
 	args := os.Args[1:]
-
-	commands := void.commands
 
 	for i := len(args); i > 0; i-- {
 		path := strings.Join(args[0:i], " ")
@@ -18,5 +19,5 @@ func resolveCommand(void *Void) (string, *Command, []string) {
 		}
 	}
 
-	panic(CommandNotFound)
+	panic(errors.CommandNotFound)
 }
