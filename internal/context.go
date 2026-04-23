@@ -1,4 +1,4 @@
-package context
+package internal
 
 import (
 	"github.com/ryxndmello/void/command"
@@ -7,11 +7,11 @@ import (
 type Context struct {
 	path      string
 	command   *command.Command
-	flags     []string
-	arguments []string
+	flags     map[string]string
+	arguments map[string]*command.Argument
 }
 
-func NewContext(path string, command *command.Command) *Context {
+func NewContext(path string, command *command.Command, flags map[string]string, arguments map[string]*command.Argument) *Context {
 	if command == nil {
 		panic("A Command Must Be Assigned To The Void Context")
 	}
@@ -19,8 +19,8 @@ func NewContext(path string, command *command.Command) *Context {
 	return &Context{
 		path:      path,
 		command:   command,
-		flags:     command.Flags(),
-		arguments: command.Arguments(),
+		flags:     flags,
+		arguments: arguments,
 	}
 }
 
@@ -33,12 +33,16 @@ func (ctx *Context) Execute() error {
 		}
 	}
 
-	if execute := ctx.command.Execute(); execute != nil {
-		err := execute(ctx.path, ctx.command, ctx.arguments, ctx.flags)
+	execute := ctx.command.Execute()
 
-		if err != nil {
-			return err
-		}
+	if execute == nil {
+		panic("Command Execute Handler Must Be Provided")
+	}
+
+	err := execute(ctx.path, ctx.command, ctx.arguments, ctx.flags)
+
+	if err != nil {
+		return err
 	}
 
 	if postExecute := ctx.command.PostExecute(); postExecute != nil {
