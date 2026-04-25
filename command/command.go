@@ -1,6 +1,8 @@
 package command
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -79,11 +81,18 @@ func (command *Command) AddFlag(flag string) *Command {
 	return command
 }
 
-func (command *Command) Arguments() ([]*Argument, []*Argument) {
+func (command *Command) Arguments() ([]*Argument, []*Argument, *Argument) {
+	var variadic *Argument
+
 	required := make([]*Argument, 0)
 	optional := make([]*Argument, 0)
 
 	for i := range command.arguments {
+		if command.arguments[i].variadic {
+			variadic = command.arguments[i]
+			break
+		}
+
 		if command.arguments[i].required {
 			required = append(required, command.arguments[i])
 		} else {
@@ -91,23 +100,45 @@ func (command *Command) Arguments() ([]*Argument, []*Argument) {
 		}
 	}
 
-	return required, optional
+	return required, optional, variadic
 }
 
 func (command *Command) SetArguments(arguments []*Argument) *Command {
+	var variadic *Argument
+
+	names := make([]string, 0)
 	required := make([]*Argument, 0)
 	optional := make([]*Argument, 0)
 
 	for i := range arguments {
+		if slices.Contains(names, arguments[i].name) {
+			panic(fmt.Sprintf("Command '%s' Must Have Unique Arguments", command.name))
+		}
+
+		if arguments[i].variadic {
+			if variadic != nil {
+				panic(fmt.Sprintf("Command '%s' Already Contains A Variadic Argument '%s'", command.name, variadic.name))
+			}
+
+			variadic = arguments[i]
+			continue
+		}
+
 		if arguments[i].required {
 			required = append(required, arguments[i])
 		} else {
 			optional = append(optional, arguments[i])
 		}
+
+		names = append(names, arguments[i].name)
 	}
 
 	command.arguments = append(command.arguments, required...)
 	command.arguments = append(command.arguments, optional...)
+
+	if variadic != nil {
+		command.arguments = append(command.arguments, variadic)
+	}
 
 	return command
 }

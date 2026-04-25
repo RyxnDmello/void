@@ -24,11 +24,7 @@ func resolveCommand(commands map[string]*command.Command) (string, *command.Comm
 }
 
 func resolveArguments(cmd *command.Command, parameters []string) map[string]*command.Argument {
-	required, optional := cmd.Arguments()
-
-	// for _, r := range required {
-	// 	fmt.Println(r.Name())
-	// }
+	required, optional, variadic := cmd.Arguments()
 
 	if len(parameters) < len(required) {
 		names := make([]string, 0)
@@ -37,10 +33,10 @@ func resolveArguments(cmd *command.Command, parameters []string) map[string]*com
 			names = append(names, required[i].Name())
 		}
 
-		panic(fmt.Sprintf("Command '%s' Requires Arguments: %v", cmd.Name(), names))
+		panic(fmt.Sprintf("Command '%s' Requires Arguments: %v", cmd.Name(), strings.Join(names, ", ")))
 	}
 
-	if len(parameters) > len(required)+len(optional) {
+	if variadic == nil && len(parameters) > len(required)+len(optional) {
 		panic("Too Many Arguments Provided")
 	}
 
@@ -67,11 +63,24 @@ func resolveArguments(cmd *command.Command, parameters []string) map[string]*com
 		}
 	}
 
-	// for i := range arguments {
-	// 	fmt.Println(arguments[i].Name(), "=", arguments[i].Value())
-	// }
+	if variadic != nil {
+		if index < len(parameters) {
+			variadic.SetValue(parameters[index:])
+			arguments[variadic.Name()] = variadic
+			return arguments
+		}
 
-	// fmt.Println()
+		if len(optional) == 0 {
+			if variadic.Required() {
+				panic(fmt.Sprintf("Command '%s' Requires Arguments: %s", cmd.Name(), variadic.Name()))
+			}
+
+			if variadic.Value() != nil {
+				arguments[variadic.Name()] = variadic
+				return arguments
+			}
+		}
+	}
 
 	return arguments
 }
