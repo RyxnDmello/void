@@ -15,7 +15,8 @@ type Argument struct {
 	variadic    bool
 	value       any
 	enum        []string
-	handleValue func(value any) any
+	onValue     func(value any) any
+	onValidate  func(value any) any
 }
 
 func NewArgument(name string) *Argument {
@@ -23,13 +24,13 @@ func NewArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.handleValue = func(value any) any {
+	argument.OnValue(func(value any) any {
 		if value == nil {
 			return nil
 		}
 
 		return fmt.Sprintf("%v", value)
-	}
+	})
 
 	return argument
 }
@@ -39,7 +40,7 @@ func NewNumberArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.handleValue = func(value any) any {
+	argument.OnValue(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -53,7 +54,7 @@ func NewNumberArgument(name string) *Argument {
 		}
 
 		return result
-	}
+	})
 
 	return argument
 }
@@ -63,7 +64,7 @@ func NewBooleanArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.handleValue = func(value any) any {
+	argument.OnValue(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -81,7 +82,7 @@ func NewBooleanArgument(name string) *Argument {
 		}
 
 		return result
-	}
+	})
 
 	return argument
 }
@@ -97,7 +98,7 @@ func NewEnumArgument(name string, enum []string) *Argument {
 
 	argument.enum = enum
 
-	argument.handleValue = func(value any) any {
+	argument.OnValue(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -115,7 +116,7 @@ func NewEnumArgument(name string, enum []string) *Argument {
 		}
 
 		return value
-	}
+	})
 
 	return argument
 }
@@ -127,7 +128,7 @@ func NewListArgument(name string) *Argument {
 
 	argument.variadic = true
 
-	argument.handleValue = func(value any) any {
+	argument.OnValue(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -139,7 +140,7 @@ func NewListArgument(name string) *Argument {
 		}
 
 		return result
-	}
+	})
 
 	return argument
 }
@@ -160,7 +161,8 @@ func NewCustomArgument(name string, handleValue func(value any) any) *Argument {
 		variadic:    false,
 		value:       nil,
 		enum:        nil,
-		handleValue: nil,
+		onValue:     nil,
+		onValidate:  nil,
 	}
 }
 
@@ -200,7 +202,7 @@ func (argument *Argument) Variadic() bool {
 }
 
 func (argument *Argument) Value() any {
-	return argument.handleValue(argument.value)
+	return argument.onValue(argument.value)
 }
 
 func (argument *Argument) SetValue(value any) *Argument {
@@ -212,11 +214,25 @@ func (argument *Argument) Enum() []string {
 	return argument.enum
 }
 
-func (argument *Argument) HandleValue(handleValue func(value any) any) *Argument {
+func (argument *Argument) OnValue(handleValue func(value any) any) *Argument {
 	if handleValue == nil {
 		panic(fmt.Sprintf("Argument '%s' Must Have A Value Handler", argument.name))
 	}
 
-	argument.handleValue = handleValue
+	argument.onValue = func(value any) any {
+		result := handleValue(value)
+
+		if argument.onValidate != nil {
+			return argument.onValidate(result)
+		}
+
+		return result
+	}
+
+	return argument
+}
+
+func (argument *Argument) OnValidate(handleValidate func(value any) any) *Argument {
+	argument.onValidate = handleValidate
 	return argument
 }
