@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ryxndmello/void/command"
-	"github.com/ryxndmello/void/context"
+	"github.com/ryxndmello/void/internal"
 )
 
 type Void struct {
@@ -42,7 +42,7 @@ func (void *Void) Run() error {
 		}
 	}()
 
-	path, command, _ := resolveCommand(void.commands)
+	path, command, flags, arguments := internal.Parse(void.commands)
 
-	return context.NewContext(path, command).Execute()
+	return internal.NewContext(path, command, flags, arguments).Execute()
 }

@@ -11,9 +11,7 @@ import (
 	"github.com/ryxndmello/void/errors"
 )
 
-var pattern = regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
-
-func resolveFilePath() (string, error) {
+func resolveFile() (string, error) {
 	workPath, err := filepath.Abs(".")
 
 	if err != nil {
@@ -25,6 +23,8 @@ func resolveFilePath() (string, error) {
 	if !ok {
 		return "", errors.CommandNotFound
 	}
+
+	pattern := regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
 
 	valid := pattern.MatchString(filePath)
 
@@ -47,8 +47,8 @@ func resolveFilePath() (string, error) {
 	return path, nil
 }
 
-func resolveCommandPath() ([]string, string) {
-	filePath, err := resolveFilePath()
+func resolvePath() ([]string, string) {
+	filePath, err := resolveFile()
 
 	if err != nil {
 		panic(err)
