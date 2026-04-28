@@ -4,30 +4,34 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/ryxndmello/void/internal/context"
 )
 
 type Command struct {
-	path        []string
+	use         string
 	name        string
 	tagline     string
 	description string
 	enabled     bool
+	path        []string
 	flags       []string
 	arguments   []*Argument
-	execute     func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error
-	preExecute  func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error
-	postExecute func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error
+	execute     func(ctx *context.Context) error
+	preExecute  func(ctx *context.Context) error
+	postExecute func(ctx *context.Context) error
 }
 
 func NewCommand() *Command {
 	path, name := resolvePath()
 
 	return &Command{
-		path:        path,
+		use:         name,
 		name:        name,
-		tagline:     "A command.",
-		description: "A command.",
+		tagline:     "",
+		description: "",
 		enabled:     true,
+		path:        path,
 		flags:       make([]string, 0),
 		arguments:   make([]*Argument, 0),
 		execute:     nil,
@@ -36,17 +40,12 @@ func NewCommand() *Command {
 	}
 }
 
-func (command *Command) Path() string {
-	return strings.Join(command.path, " ")
+func (command *Command) Use() string {
+	return command.use
 }
 
 func (command *Command) Name() string {
 	return command.name
-}
-
-func (command *Command) SetName(name string) *Command {
-	command.name = name
-	return command
 }
 
 func (command *Command) Tagline() string {
@@ -54,7 +53,7 @@ func (command *Command) Tagline() string {
 }
 
 func (command *Command) SetTagline(tagline string) *Command {
-	command.tagline = tagline
+	command.tagline = strings.Trim(tagline, " ")
 	return command
 }
 
@@ -63,8 +62,12 @@ func (command *Command) Description() string {
 }
 
 func (command *Command) SetDescription(description string) *Command {
-	command.description = description
+	command.description = strings.Trim(description, " ")
 	return command
+}
+
+func (command *Command) IsEnabled() bool {
+	return command.enabled
 }
 
 func (command *Command) Disable() *Command {
@@ -72,12 +75,16 @@ func (command *Command) Disable() *Command {
 	return command
 }
 
+func (command *Command) Path() string {
+	return strings.Join(command.path, " ")
+}
+
 func (command *Command) Flags() []string {
 	return command.flags
 }
 
-func (command *Command) AddFlag(flag string) *Command {
-	command.flags = append(command.flags, flag)
+func (command *Command) SetFlags(flags ...string) *Command {
+	command.flags = flags
 	return command
 }
 
@@ -103,7 +110,7 @@ func (command *Command) Arguments() ([]*Argument, []*Argument, *Argument) {
 	return required, optional, variadic
 }
 
-func (command *Command) SetArguments(arguments []*Argument) *Command {
+func (command *Command) SetArguments(arguments ...*Argument) *Command {
 	var variadic *Argument
 
 	names := make([]string, 0)
@@ -111,6 +118,8 @@ func (command *Command) SetArguments(arguments []*Argument) *Command {
 	optional := make([]*Argument, 0)
 
 	for i := range arguments {
+		arguments[i].MustValidate()
+
 		if slices.Contains(names, arguments[i].name) {
 			panic(fmt.Sprintf("Command '%s' Must Have Unique Arguments", command.name))
 		}
@@ -143,33 +152,79 @@ func (command *Command) SetArguments(arguments []*Argument) *Command {
 	return command
 }
 
-func (command *Command) Execute() func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error {
-	return command.execute
+func (command *Command) Execute(ctx *context.Context) error {
+	if ctx == nil {
+		panic("Command Execution Handler Must Have A Context")
+	}
+
+	if command.execute == nil {
+		panic("Command Execution Handler Must Be Provided")
+	}
+
+	return command.execute(ctx)
 }
 
-func (command *Command) HandleExecute(execute func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error) *Command {
+func (command *Command) SetExecute(execute func(ctx *context.Context) error) *Command {
 	if execute == nil {
-		panic("Command Execute Handler Must Be Provided")
+		panic("Command Execution Handler Must Be Provided")
 	}
 
 	command.execute = execute
 	return command
 }
 
-func (command *Command) PreExecute() func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error {
-	return command.preExecute
+func (command *Command) PreExecute(ctx *context.Context) error {
+	if ctx == nil {
+		panic("Command Pre Execution Handler Must Have A Context")
+	}
+
+	if command.preExecute == nil {
+		return nil
+	}
+
+	return command.preExecute(ctx)
 }
 
-func (command *Command) HandlePreExecute(preExecute func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error) *Command {
+func (command *Command) SetPreExecute(preExecute func(ctx *context.Context) error) *Command {
 	command.preExecute = preExecute
 	return command
 }
 
-func (command *Command) PostExecute() func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error {
-	return command.postExecute
+func (command *Command) PostExecute(ctx *context.Context) error {
+	if ctx == nil {
+		panic("Command Post Execution Handler Must Have A Context")
+	}
+
+	if command.postExecute == nil {
+		return nil
+	}
+
+	return command.postExecute(ctx)
 }
 
-func (command *Command) HandlePostExecute(postExecute func(path string, cmd *Command, args map[string]*Argument, flags map[string]string) error) *Command {
+func (command *Command) SetPostExecute(postExecute func(ctx *context.Context) error) *Command {
 	command.postExecute = postExecute
 	return command
+}
+
+func (command *Command) MustValidate() {
+	if len(command.path) == 0 {
+		panic("Every Command Must Have A Path")
+	}
+
+	if len(command.name) == 0 {
+		panic("Every Command Must Have A Name")
+	}
+
+	if len(command.tagline) == 0 {
+		panic(fmt.Sprintf("Command '%s' Must Have A Tagline", command.name))
+	}
+
+	if len(command.description) == 0 {
+		panic(fmt.Sprintf("Command '%s' Must Have A Description", command.name))
+	}
+
+	if command.execute == nil {
+		panic(fmt.Sprintf("Command '%s' Must Have An Execution Handler", command.name))
+	}
 }

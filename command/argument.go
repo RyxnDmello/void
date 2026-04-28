@@ -15,8 +15,8 @@ type Argument struct {
 	variadic    bool
 	value       any
 	enum        []string
-	onValue     func(value any) any
-	onValidate  func(value any) any
+	covert      func(value any) any
+	validate    func(value any) any
 }
 
 func NewArgument(name string) *Argument {
@@ -24,7 +24,7 @@ func NewArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.OnValue(func(value any) any {
+	argument.SetConvert(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -40,7 +40,7 @@ func NewNumberArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.OnValue(func(value any) any {
+	argument.SetConvert(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -64,7 +64,7 @@ func NewBooleanArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.OnValue(func(value any) any {
+	argument.SetConvert(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -98,7 +98,7 @@ func NewEnumArgument(name string, enum []string) *Argument {
 
 	argument.enum = enum
 
-	argument.OnValue(func(value any) any {
+	argument.SetConvert(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -128,7 +128,7 @@ func NewListArgument(name string) *Argument {
 
 	argument.variadic = true
 
-	argument.OnValue(func(value any) any {
+	argument.SetConvert(func(value any) any {
 		if value == nil {
 			return nil
 		}
@@ -147,7 +147,7 @@ func NewListArgument(name string) *Argument {
 
 func NewCustomArgument(name string, handleValue func(value any) any) *Argument {
 	name = strings.ToLower(name)
-	name = strings.Trim(name, "")
+	name = strings.Trim(name, " ")
 
 	if handleValue == nil {
 		panic(fmt.Sprintf("Argument '%s' Must Have A Value Handler", name))
@@ -161,8 +161,8 @@ func NewCustomArgument(name string, handleValue func(value any) any) *Argument {
 		variadic:    false,
 		value:       nil,
 		enum:        nil,
-		onValue:     nil,
-		onValidate:  nil,
+		covert:      nil,
+		validate:    nil,
 	}
 }
 
@@ -175,7 +175,7 @@ func (argument *Argument) Tagline() string {
 }
 
 func (argument *Argument) SetTagline(tagline string) *Argument {
-	argument.tagline = tagline
+	argument.tagline = strings.Trim(tagline, " ")
 	return argument
 }
 
@@ -184,28 +184,36 @@ func (argument *Argument) Description() string {
 }
 
 func (argument *Argument) SetDescription(description string) *Argument {
-	argument.description = description
+	argument.description = strings.Trim(description, " ")
 	return argument
 }
 
-func (argument *Argument) Optional() *Argument {
+func (argument *Argument) IsRequired() bool {
+	return argument.required
+}
+
+func (argument *Argument) Optional(value any) *Argument {
+	if value != nil {
+		argument.value = value
+	}
+
 	argument.required = false
 	return argument
 }
 
-func (argument *Argument) Required() bool {
-	return argument.required
-}
-
-func (argument *Argument) Variadic() bool {
+func (argument *Argument) IsVariadic() bool {
 	return argument.variadic
 }
 
 func (argument *Argument) Value() any {
-	return argument.onValue(argument.value)
+	return argument.covert(argument.value)
 }
 
 func (argument *Argument) SetValue(value any) *Argument {
+	if value == nil {
+		panic(fmt.Sprintf("Argument '%s' Must Either Be Assigned A Value Or Set As Optional", argument.name))
+	}
+
 	argument.value = value
 	return argument
 }
@@ -214,16 +222,16 @@ func (argument *Argument) Enum() []string {
 	return argument.enum
 }
 
-func (argument *Argument) OnValue(handleValue func(value any) any) *Argument {
-	if handleValue == nil {
-		panic(fmt.Sprintf("Argument '%s' Must Have A Value Handler", argument.name))
+func (argument *Argument) SetConvert(convert func(value any) any) *Argument {
+	if convert == nil {
+		panic(fmt.Sprintf("Argument '%s' Must Have A Type Conversion Handler", argument.name))
 	}
 
-	argument.onValue = func(value any) any {
-		result := handleValue(value)
+	argument.covert = func(value any) any {
+		result := convert(value)
 
-		if argument.onValidate != nil {
-			return argument.onValidate(result)
+		if argument.validate != nil {
+			return argument.validate(result)
 		}
 
 		return result
@@ -232,7 +240,25 @@ func (argument *Argument) OnValue(handleValue func(value any) any) *Argument {
 	return argument
 }
 
-func (argument *Argument) OnValidate(handleValidate func(value any) any) *Argument {
-	argument.onValidate = handleValidate
+func (argument *Argument) SetValidate(validate func(value any) any) *Argument {
+	argument.validate = validate
 	return argument
+}
+
+func (argument *Argument) MustValidate() {
+	if len(argument.name) == 0 {
+		panic("Every Argument Must Have A Name")
+	}
+
+	if len(argument.tagline) == 0 {
+		panic(fmt.Sprintf("Argument '%s' Must Have A Tagline", argument.name))
+	}
+
+	if len(argument.description) == 0 {
+		panic(fmt.Sprintf("Argument '%s' Must Have A Tagline", argument.name))
+	}
+
+	if argument.covert == nil {
+		panic(fmt.Sprintf("Argument '%s' Must Have A Type Conversion Handler", argument.name))
+	}
 }
