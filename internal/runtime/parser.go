@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/ryxndmello/void/command"
+	"github.com/ryxndmello/void/pkg/command"
 )
 
 func Parse(commands map[string]*command.Command) (string, *command.Command, map[string]any, map[string]any) {
