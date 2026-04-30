@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ryxndmello/void/errors"
+	"github.com/ryxndmello/void/pkg/errors"
 )
 
 func resolveFile() (string, error) {

@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ryxndmello/void/command"
-	"github.com/ryxndmello/void/errors"
+	"github.com/ryxndmello/void/pkg/command"
+	"github.com/ryxndmello/void/pkg/errors"
 )
 
 func resolveCommand(cmds map[string]*command.Command) (string, *command.Command, []string, []string) {
@@ -87,13 +87,114 @@ func resolveArguments(cmd *command.Command, params []string) map[string]any {
 }
 
 func resolveFlags(cmd *command.Command, params []string) map[string]any {
-	flags := cmd.Flags()
+	paramFlags := make(map[string][]string)
 
-	if len(params) > 0 && len(flags) == 0 {
+	index := 0
+
+	for index < len(params) {
+		name := params[index]
+
+		if !strings.HasPrefix(name, "-") {
+			panic(fmt.Sprintf("%s Not A Valid Flag", name))
+		}
+
+		parted := strings.Split(name, "=")
+
+		if len(parted) > 2 {
+			panic(fmt.Sprintf("%s Not A Valid Flag", name))
+		}
+
+		if len(parted) == 2 {
+			name = parted[0]
+			values := strings.Split(parted[1], ",")
+			paramFlags[name] = append(paramFlags[name], values...)
+
+			index++
+			continue
+		}
+
+		if index+1 < len(params) && !strings.HasPrefix(params[index+1], "-") {
+			values := strings.Split(params[index+1], ",")
+			paramFlags[name] = append(paramFlags[name], values...)
+			index += 2
+			continue
+		}
+
+		paramFlags[name] = append(paramFlags[name], "true")
+		index++
+	}
+
+	required, optional := cmd.Flags()
+
+	if len(paramFlags) < len(required) {
+		names := make([]string, 0)
+
+		for i := range required {
+			names = append(names, required[i].Name())
+		}
+
+		panic(fmt.Sprintf("Command '%s' Requires Flags: %v", cmd.Name(), strings.Join(names, ", ")))
+	}
+
+	if len(paramFlags) > len(required)+len(optional) {
 		panic("Too Many Flags Provided")
 	}
 
-	return make(map[string]any)
+	flags := make(map[string]any)
+
+	index = 0
+
+	for i := range required {
+		flag := required[i]
+
+		paramFlag := paramFlags[flag.Name()]
+
+		if len(paramFlag) == 0 {
+			panic(fmt.Sprintf("Command '%s' Requires Flag: %s", cmd.Name(), flag.Name()))
+		}
+
+		if flag.IsVariadic() {
+			flag.SetValue(paramFlag)
+			flags[flag.Name()] = flag.Value()
+			continue
+		}
+
+		if len(paramFlag) > 1 {
+			panic(fmt.Sprintf("Command '%s' With Flag: %s Only Accepts A Single Value", cmd.Name(), flag.Name()))
+		}
+
+		flag.SetValue(paramFlag[0])
+		flags[flag.Name()] = flag.Value()
+	}
+
+	for i := range optional {
+		flag := optional[i]
+
+		paramFlag := paramFlags[flag.Name()]
+
+		if len(paramFlag) == 0 {
+			if flag.Value() != nil {
+				flags[flag.Name()] = flag.Value()
+			}
+
+			continue
+		}
+
+		if flag.IsVariadic() {
+			flag.SetValue(paramFlag)
+			flags[flag.Name()] = flag.Value()
+			continue
+		}
+
+		if len(paramFlag) > 1 {
+			panic(fmt.Sprintf("Command '%s' With Flag: %s Only Accepts A Single Value", cmd.Name(), flag.Name()))
+		}
+
+		flag.SetValue(paramFlag[0])
+		flags[flag.Name()] = flag.Value()
+	}
+
+	return flags
 }
 
 func sortParams(params []string) ([]string, []string) {

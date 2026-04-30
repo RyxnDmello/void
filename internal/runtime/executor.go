@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/ryxndmello/void/command"
 	"github.com/ryxndmello/void/internal/context"
+	"github.com/ryxndmello/void/pkg/command"
 )
 
 func Execute(context *context.Context, command *command.Command) error {

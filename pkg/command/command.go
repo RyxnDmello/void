@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/ryxndmello/void/internal/context"
+	"github.com/ryxndmello/void/pkg/argument"
+	"github.com/ryxndmello/void/pkg/flag"
 )
 
 type Command struct {
@@ -15,8 +17,8 @@ type Command struct {
 	description string
 	enabled     bool
 	path        []string
-	flags       []string
-	arguments   []*Argument
+	flags       []*flag.Flag
+	arguments   []*argument.Argument
 	execute     func(ctx *context.Context) error
 	preExecute  func(ctx *context.Context) error
 	postExecute func(ctx *context.Context) error
@@ -32,8 +34,8 @@ func NewCommand() *Command {
 		description: "",
 		enabled:     true,
 		path:        path,
-		flags:       make([]string, 0),
-		arguments:   make([]*Argument, 0),
+		flags:       make([]*flag.Flag, 0),
+		arguments:   make([]*argument.Argument, 0),
 		execute:     nil,
 		preExecute:  nil,
 		postExecute: nil,
@@ -79,28 +81,40 @@ func (command *Command) Path() string {
 	return strings.Join(command.path, " ")
 }
 
-func (command *Command) Flags() []string {
-	return command.flags
+func (command *Command) Flags() ([]*flag.Flag, []*flag.Flag) {
+	required := make([]*flag.Flag, 0)
+	optional := make([]*flag.Flag, 0)
+
+	for i := range command.flags {
+		if command.flags[i].IsRequired() {
+			required = append(required, command.flags[i])
+			continue
+		}
+
+		optional = append(optional, command.flags[i])
+	}
+
+	return required, optional
 }
 
-func (command *Command) SetFlags(flags ...string) *Command {
+func (command *Command) SetFlags(flags ...*flag.Flag) *Command {
 	command.flags = flags
 	return command
 }
 
-func (command *Command) Arguments() ([]*Argument, []*Argument, *Argument) {
-	var variadic *Argument
+func (command *Command) Arguments() ([]*argument.Argument, []*argument.Argument, *argument.Argument) {
+	var variadic *argument.Argument
 
-	required := make([]*Argument, 0)
-	optional := make([]*Argument, 0)
+	required := make([]*argument.Argument, 0)
+	optional := make([]*argument.Argument, 0)
 
 	for i := range command.arguments {
-		if command.arguments[i].variadic {
+		if command.arguments[i].IsVariadic() {
 			variadic = command.arguments[i]
 			break
 		}
 
-		if command.arguments[i].required {
+		if command.arguments[i].IsRequired() {
 			required = append(required, command.arguments[i])
 		} else {
 			optional = append(optional, command.arguments[i])
@@ -110,36 +124,36 @@ func (command *Command) Arguments() ([]*Argument, []*Argument, *Argument) {
 	return required, optional, variadic
 }
 
-func (command *Command) SetArguments(arguments ...*Argument) *Command {
-	var variadic *Argument
+func (command *Command) SetArguments(arguments ...*argument.Argument) *Command {
+	var variadic *argument.Argument
 
 	names := make([]string, 0)
-	required := make([]*Argument, 0)
-	optional := make([]*Argument, 0)
+	required := make([]*argument.Argument, 0)
+	optional := make([]*argument.Argument, 0)
 
 	for i := range arguments {
 		arguments[i].MustValidate()
 
-		if slices.Contains(names, arguments[i].name) {
+		if slices.Contains(names, arguments[i].Name()) {
 			panic(fmt.Sprintf("Command '%s' Must Have Unique Arguments", command.name))
 		}
 
-		if arguments[i].variadic {
+		if arguments[i].IsVariadic() {
 			if variadic != nil {
-				panic(fmt.Sprintf("Command '%s' Already Contains A Variadic Argument '%s'", command.name, variadic.name))
+				panic(fmt.Sprintf("Command '%s' Already Contains A Variadic Argument '%s'", command.name, variadic.Name()))
 			}
 
 			variadic = arguments[i]
 			continue
 		}
 
-		if arguments[i].required {
+		if arguments[i].IsRequired() {
 			required = append(required, arguments[i])
 		} else {
 			optional = append(optional, arguments[i])
 		}
 
-		names = append(names, arguments[i].name)
+		names = append(names, arguments[i].Name())
 	}
 
 	command.arguments = append(command.arguments, required...)

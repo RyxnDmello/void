@@ -3,9 +3,9 @@ package void
 import (
 	"fmt"
 
-	"github.com/ryxndmello/void/command"
 	"github.com/ryxndmello/void/internal/context"
 	"github.com/ryxndmello/void/internal/runtime"
+	"github.com/ryxndmello/void/pkg/command"
 )
 
 type Void struct {
