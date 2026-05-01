@@ -1,5 +1,5 @@
-# Test Workspace
-cmd/test/
+# Dev Workspace
+cmd/dev/
 
 # Go Workspace
 go.work
