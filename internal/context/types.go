@@ -1,5 +1,9 @@
 package context
 
+import (
+	"time"
+)
+
 func getValue(values map[string]any, name string) any {
 	if len(values) == 0 {
 		return nil
@@ -48,6 +52,16 @@ func getBoolValue(value any) *bool {
 	return &result
 }
 
+func getDurationValue(value any) *time.Duration {
+	result, ok := value.(time.Duration)
+
+	if !ok {
+		return nil
+	}
+
+	return &result
+}
+
 func getStringListValue(value any) *[]string {
 	result, ok := value.([]string)
 
@@ -80,6 +94,16 @@ func getFloatListValue(value any) *[]float64 {
 
 func getBoolListValue(value any) *[]bool {
 	result, ok := value.([]bool)
+
+	if !ok {
+		return nil
+	}
+
+	return &result
+}
+
+func getDurationListValue(value any) *[]time.Duration {
+	result, ok := value.([]time.Duration)
 
 	if !ok {
 		return nil

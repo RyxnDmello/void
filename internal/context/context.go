@@ -2,6 +2,7 @@ package context
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ryxndmello/void/pkg/argument"
 	"github.com/ryxndmello/void/pkg/flag"
@@ -179,6 +180,16 @@ func (context *Context) MustGetBoolFlag(name string) bool {
 	return *value
 }
 
+func (context *Context) MustGetDurationFlag(name string) time.Duration {
+	value := getDurationValue(context.MustGetFlag(name))
+
+	if value == nil {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A Duration", name))
+	}
+
+	return *value
+}
+
 func (context *Context) MustGetStringListFlag(name string) []string {
 	value := getStringListValue(context.MustGetFlag(name))
 
@@ -211,6 +222,16 @@ func (context *Context) MustGetFloatListFlag(name string) []float64 {
 
 func (context *Context) MustGetBoolListFlag(name string) []bool {
 	value := getBoolListValue(context.MustGetFlag(name))
+
+	if value == nil {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Booleans", name))
+	}
+
+	return *value
+}
+
+func (context *Context) MustGetDurationListFlag(name string) []time.Duration {
+	value := getDurationListValue(context.MustGetFlag(name))
 
 	if value == nil {
 		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Booleans", name))

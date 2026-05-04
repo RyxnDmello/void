@@ -30,7 +30,7 @@ func NewStringEnumFlag(name string, enum []string) *Flag {
 	})
 
 	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Of Type Enum Must Have At Least 1 Option", flag.name))
+		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
 	}
 
 	for i := range enum {
