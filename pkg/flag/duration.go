@@ -34,6 +34,41 @@ func NewDurationFlag(name string) *Flag {
 	return flag
 }
 
+func NewDurationListFlag(name string) *Flag {
+	flag := NewCustomFlag(name, func(value any) any {
+		return nil
+	})
+
+	flag.SetConvert(func(value any) any {
+		switch v := value.(type) {
+		case nil, []time.Duration:
+			return v
+
+		case []string:
+			durations := make([]time.Duration, 0)
+
+			for i := range v {
+				duration, err := time.ParseDuration(v[i])
+
+				if err != nil {
+					panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
+				}
+
+				durations = append(durations, duration)
+			}
+
+			return durations
+
+		default:
+			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Durations", flag.name))
+		}
+	})
+
+	flag.variadic = true
+
+	return flag
+}
+
 func NewDurationEnumFlag(name string, enum []time.Duration) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
@@ -70,41 +105,6 @@ func NewDurationEnumFlag(name string, enum []time.Duration) *Flag {
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return flag
-}
-
-func NewDurationListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.variadic = true
-
-	flag.SetConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []time.Duration:
-			return v
-
-		case []string:
-			durations := make([]time.Duration, 0)
-
-			for i := range v {
-				duration, err := time.ParseDuration(v[i])
-
-				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
-				}
-
-				durations = append(durations, duration)
-			}
-
-			return durations
-
-		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Durations", flag.name))
 		}
 	})
 

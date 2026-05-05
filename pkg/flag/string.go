@@ -24,6 +24,26 @@ func NewStringFlag(name string) *Flag {
 	return flag
 }
 
+func NewStringListFlag(name string) *Flag {
+	flag := NewCustomFlag(name, func(value any) any {
+		return nil
+	})
+
+	flag.SetConvert(func(value any) any {
+		switch v := value.(type) {
+		case nil, []string:
+			return v
+
+		default:
+			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Strings", flag.name))
+		}
+	})
+
+	flag.variadic = true
+
+	return flag
+}
+
 func NewStringEnumFlag(name string, enum []string) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
@@ -58,26 +78,6 @@ func NewStringEnumFlag(name string, enum []string) *Flag {
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return flag
-}
-
-func NewStringListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.variadic = true
-
-	flag.SetConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []string:
-			return v
-
-		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Strings", flag.name))
 		}
 	})
 

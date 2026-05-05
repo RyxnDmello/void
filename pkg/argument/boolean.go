@@ -39,8 +39,6 @@ func NewBoolListArgument(name string) *Argument {
 		return nil
 	})
 
-	argument.variadic = true
-
 	argument.SetConvert(func(value any) any {
 		switch v := value.(type) {
 		case nil, []bool:
@@ -65,6 +63,8 @@ func NewBoolListArgument(name string) *Argument {
 			panic(fmt.Sprintf("Argument '%s' Must Be A List Of Booleans", argument.name))
 		}
 	})
+
+	argument.variadic = true
 
 	return argument
 }

@@ -190,6 +190,16 @@ func (context *Context) MustGetDurationFlag(name string) time.Duration {
 	return *value
 }
 
+func (context *Context) MustGetTimeFlag(name string) time.Time {
+	value := getTimeValue(context.MustGetFlag(name))
+
+	if value == nil {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A Date Time", name))
+	}
+
+	return *value
+}
+
 func (context *Context) MustGetStringListFlag(name string) []string {
 	value := getStringListValue(context.MustGetFlag(name))
 
@@ -234,7 +244,17 @@ func (context *Context) MustGetDurationListFlag(name string) []time.Duration {
 	value := getDurationListValue(context.MustGetFlag(name))
 
 	if value == nil {
-		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Booleans", name))
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Durations", name))
+	}
+
+	return *value
+}
+
+func (context *Context) MustGetTimeListFlag(name string) []time.Time {
+	value := getTimeListValue(context.MustGetFlag(name))
+
+	if value == nil {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Date Times", name))
 	}
 
 	return *value

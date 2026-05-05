@@ -32,13 +32,48 @@ func NewIntArgument(name string) *Argument {
 	return argument
 }
 
+func NewIntListArgument(name string) *Argument {
+	argument := NewCustomArgument(name, func(value any) any {
+		return nil
+	})
+
+	argument.SetConvert(func(value any) any {
+		switch v := value.(type) {
+		case nil, []int:
+			return v
+
+		case []string:
+			result := make([]int, 0)
+
+			for i := range v {
+				value, err := strconv.Atoi(v[i])
+
+				if err != nil {
+					panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
+				}
+
+				result = append(result, value)
+			}
+
+			return result
+
+		default:
+			panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
+		}
+	})
+
+	argument.variadic = true
+
+	return argument
+}
+
 func NewIntEnumArgument(name string, enum []int) *Argument {
 	argument := NewCustomArgument(name, func(value any) any {
 		return nil
 	})
 
 	if len(enum) == 0 {
-		panic(fmt.Sprintf("Argument '%s' Of Type Enum Must Have At Least 1 Option", argument.name))
+		panic(fmt.Sprintf("Argument '%s' Must Have At Least 1 Option", argument.name))
 	}
 
 	for i := range enum {
@@ -74,41 +109,6 @@ func NewIntEnumArgument(name string, enum []int) *Argument {
 
 		default:
 			panic(fmt.Sprintf("Argument '%s' Must Be One Of %s", argument.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return argument
-}
-
-func NewIntListArgument(name string) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	argument.variadic = true
-
-	argument.SetConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []int:
-			return v
-
-		case []string:
-			result := make([]int, 0)
-
-			for i := range v {
-				value, err := strconv.Atoi(v[i])
-
-				if err != nil {
-					panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
-				}
-
-				result = append(result, value)
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
 		}
 	})
 

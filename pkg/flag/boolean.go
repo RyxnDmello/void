@@ -37,8 +37,6 @@ func NewBoolListFlag(name string) *Flag {
 		return nil
 	})
 
-	flag.variadic = true
-
 	flag.SetConvert(func(value any) any {
 		switch v := value.(type) {
 		case nil, []bool:
@@ -63,6 +61,8 @@ func NewBoolListFlag(name string) *Flag {
 			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Booleans", flag.name))
 		}
 	})
+
+	flag.variadic = true
 
 	return flag
 }

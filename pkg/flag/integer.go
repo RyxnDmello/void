@@ -32,6 +32,41 @@ func NewIntFlag(name string) *Flag {
 	return flag
 }
 
+func NewIntListFlag(name string) *Flag {
+	flag := NewCustomFlag(name, func(value any) any {
+		return nil
+	})
+
+	flag.SetConvert(func(value any) any {
+		switch v := value.(type) {
+		case nil, []int:
+			return v
+
+		case []string:
+			result := make([]int, 0)
+
+			for i := range v {
+				value, err := strconv.Atoi(v[i])
+
+				if err != nil {
+					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
+				}
+
+				result = append(result, value)
+			}
+
+			return result
+
+		default:
+			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
+		}
+	})
+
+	flag.variadic = true
+
+	return flag
+}
+
 func NewIntEnumFlag(name string, enum []int) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
@@ -74,41 +109,6 @@ func NewIntEnumFlag(name string, enum []int) *Flag {
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return flag
-}
-
-func NewIntListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.variadic = true
-
-	flag.SetConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []int:
-			return v
-
-		case []string:
-			result := make([]int, 0)
-
-			for i := range v {
-				value, err := strconv.Atoi(v[i])
-
-				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
-				}
-
-				result = append(result, value)
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
 		}
 	})
 
