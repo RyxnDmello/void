@@ -113,8 +113,8 @@ func mustConvDateTime(value any, layouts []string) time.Time {
 
 	case string:
 		for i := range layouts {
-			if result, err := time.Parse(layouts[i], v); err == nil {
-				return result
+			if time, err := time.Parse(layouts[i], v); err == nil {
+				return time
 			}
 		}
 
@@ -135,8 +135,8 @@ func mustConvDateTimeList(name string, value any, layouts []string) []time.Time 
 
 		for i := range v {
 			for j := range layouts {
-				if result, err := time.Parse(layouts[j], v[i]); err == nil {
-					times = append(times, result)
+				if time, err := time.Parse(layouts[j], v[i]); err == nil {
+					times = append(times, time)
 					break
 				}
 			}
@@ -171,26 +171,24 @@ func mustConvDateTimeEnum(name string, value any, enum []string, layouts []strin
 
 	switch v := value.(type) {
 	case time.Time:
-		time := v.String()
-
-		if !slices.Contains(options, time) {
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))
-		}
-
-		return v
-
-	case string:
-		for i := range layouts {
-			if result, err := time.Parse(layouts[i], v); err == nil {
-				if !slices.Contains(options, result.String()) {
-					panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))
-				}
-
-				return result
-			}
+		if slices.Contains(options, v.String()) {
+			return v
 		}
 
 		panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))
+
+	case string:
+		for i := range layouts {
+			if time, err := time.Parse(layouts[i], v); err == nil {
+				if slices.Contains(options, time.String()) {
+					return time
+				}
+
+				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))
+			}
+		}
+
+		panic(fmt.Sprintf("%s Not A Valid Date Time", v))
 
 	default:
 		panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))

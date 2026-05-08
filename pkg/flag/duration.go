@@ -18,13 +18,11 @@ func NewDurationFlag(name string) *Flag {
 			return v
 
 		case string:
-			duration, err := time.ParseDuration(v)
-
-			if err != nil {
-				panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
+			if duration, err := time.ParseDuration(v); err == nil {
+				return duration
 			}
 
-			return duration
+			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
@@ -69,7 +67,7 @@ func NewDurationListFlag(name string) *Flag {
 	return flag
 }
 
-func NewDurationEnumFlag(name string, enum []time.Duration) *Flag {
+func NewDurationEnumFlag(name string, enum []string) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
 	})
@@ -79,7 +77,13 @@ func NewDurationEnumFlag(name string, enum []time.Duration) *Flag {
 	}
 
 	for i := range enum {
-		flag.enum = append(flag.enum, enum[i])
+		duration, err := time.ParseDuration(enum[i])
+
+		if err != nil {
+			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: %s", flag.name, enum[i]))
+		}
+
+		flag.enum = append(flag.enum, duration)
 	}
 
 	flag.SetConvert(func(value any) any {
@@ -87,24 +91,35 @@ func NewDurationEnumFlag(name string, enum []time.Duration) *Flag {
 			return nil
 		}
 
-		enum := make([]string, 0)
+		options := make([]string, 0)
 
 		for i := range flag.enum {
-			enum = append(enum, flag.enum[i].(time.Duration).String())
+			options = append(options, flag.enum[i].(time.Duration).String())
 		}
 
 		switch v := value.(type) {
+		case time.Duration:
+			if slices.Contains(options, v.String()) {
+				return v
+			}
+
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+
 		case string:
 			duration, err := time.ParseDuration(v)
 
-			if err != nil || !slices.Contains(enum, duration.String()) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			if err != nil {
+				panic(fmt.Sprintf("%s Not A Valid Duration", v))
+			}
+
+			if !slices.Contains(options, duration.String()) {
+				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 			}
 
 			return duration
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 		}
 	})
 

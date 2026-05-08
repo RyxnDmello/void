@@ -25,6 +25,10 @@ func NewListFlag(name string) *Flag {
 	return NewStringListFlag(name)
 }
 
+func NewMapFlag(name string) *Flag {
+	return NewStringMapFlag(name)
+}
+
 func NewEnumFlag(name string, enum []string) *Flag {
 	return NewStringEnumFlag(name, enum)
 }

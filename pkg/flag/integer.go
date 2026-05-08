@@ -18,8 +18,8 @@ func NewIntFlag(name string) *Flag {
 			return v
 
 		case string:
-			if result, err := strconv.Atoi(v); err == nil {
-				return result
+			if integer, err := strconv.Atoi(v); err == nil {
+				return integer
 			}
 
 			panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
@@ -43,19 +43,19 @@ func NewIntListFlag(name string) *Flag {
 			return v
 
 		case []string:
-			result := make([]int, 0)
+			integers := make([]int, 0)
 
 			for i := range v {
-				value, err := strconv.Atoi(v[i])
+				integer, err := strconv.Atoi(v[i])
 
 				if err != nil {
 					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
 				}
 
-				result = append(result, value)
+				integers = append(integers, integer)
 			}
 
-			return result
+			return integers
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
@@ -85,30 +85,30 @@ func NewIntEnumFlag(name string, enum []int) *Flag {
 			return nil
 		}
 
-		enum := make([]string, 0)
+		options := make([]string, 0)
 
-		for i := range flag.enum {
-			enum = append(enum, fmt.Sprintf("%v", flag.enum[i]))
+		for i := range enum {
+			options = append(options, fmt.Sprintf("%v", enum[i]))
 		}
 
 		switch v := value.(type) {
 		case int, string:
 			raw := fmt.Sprintf("%v", v)
 
-			result, err := strconv.Atoi(raw)
+			integer, err := strconv.Atoi(raw)
 
 			if err != nil {
 				panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
 			}
 
-			if !slices.Contains(enum, raw) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			if !slices.Contains(options, raw) {
+				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 			}
 
-			return result
+			return integer
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 		}
 	})
 

@@ -10,16 +10,14 @@ func NewBoolFlag(name string) *Flag {
 		return nil
 	})
 
-	flag.value = false
-
 	flag.SetConvert(func(value any) any {
 		switch v := value.(type) {
 		case nil, bool:
 			return v
 
 		case string:
-			if result, err := strconv.ParseBool(v); err == nil {
-				return result
+			if boolean, err := strconv.ParseBool(v); err == nil {
+				return boolean
 			}
 
 			panic(fmt.Sprintf("Flag '%s' Must Be A Boolean", flag.name))
@@ -28,6 +26,8 @@ func NewBoolFlag(name string) *Flag {
 			panic(fmt.Sprintf("Flag '%s' Must Be A Boolean", flag.name))
 		}
 	})
+
+	flag.value = false
 
 	return flag
 }
@@ -43,19 +43,19 @@ func NewBoolListFlag(name string) *Flag {
 			return v
 
 		case []string:
-			result := make([]bool, 0)
+			booleans := make([]bool, 0)
 
 			for i := range v {
-				value, err := strconv.ParseBool(v[i])
+				boolean, err := strconv.ParseBool(v[i])
 
 				if err != nil {
 					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Booleans", flag.name))
 				}
 
-				result = append(result, value)
+				booleans = append(booleans, boolean)
 			}
 
-			return result
+			return booleans
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Booleans", flag.name))

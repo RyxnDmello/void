@@ -18,10 +18,8 @@ func NewFloatFlag(name string) *Flag {
 			return v
 
 		case int, string:
-			raw := fmt.Sprintf("%v", v)
-
-			if result, err := strconv.ParseFloat(raw, 64); err == nil {
-				return result
+			if float, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
+				return float
 			}
 
 			panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
@@ -45,36 +43,34 @@ func NewFloatListFlag(name string) *Flag {
 			return v
 
 		case []int:
-			result := make([]float64, 0)
+			floats := make([]float64, 0)
 
 			for i := range v {
-				raw := fmt.Sprintf("%v", v[i])
-
-				value, err := strconv.ParseFloat(raw, 64)
+				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
 
 				if err != nil {
 					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
 				}
 
-				result = append(result, value)
+				floats = append(floats, float)
 			}
 
-			return result
+			return floats
 
 		case []string:
-			result := make([]float64, 0)
+			floats := make([]float64, 0)
 
 			for i := range v {
-				value, err := strconv.ParseFloat(v[i], 64)
+				float, err := strconv.ParseFloat(v[i], 64)
 
 				if err != nil {
 					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
 				}
 
-				result = append(result, value)
+				floats = append(floats, float)
 			}
 
-			return result
+			return floats
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
@@ -104,30 +100,30 @@ func NewFloatEnumFlag(name string, enum []float64) *Flag {
 			return nil
 		}
 
-		enum := make([]string, 0)
+		options := make([]string, 0)
 
-		for i := range flag.enum {
-			enum = append(enum, fmt.Sprintf("%v", flag.enum[i]))
+		for i := range enum {
+			options = append(options, fmt.Sprintf("%v", enum[i]))
 		}
 
 		switch v := value.(type) {
 		case int, float64, string:
 			raw := fmt.Sprintf("%v", v)
 
-			result, err := strconv.ParseFloat(raw, 64)
+			float, err := strconv.ParseFloat(raw, 64)
 
 			if err != nil {
 				panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
 			}
 
-			if !slices.Contains(enum, raw) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			if !slices.Contains(options, raw) {
+				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 			}
 
-			return result
+			return float
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 		}
 	})
 

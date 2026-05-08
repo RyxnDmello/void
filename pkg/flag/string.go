@@ -62,12 +62,6 @@ func NewStringEnumFlag(name string, enum []string) *Flag {
 			return nil
 		}
 
-		enum := make([]string, 0)
-
-		for i := range flag.enum {
-			enum = append(enum, flag.enum[i].(string))
-		}
-
 		switch v := value.(type) {
 		case string:
 			if !slices.Contains(enum, v) {
