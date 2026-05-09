@@ -118,10 +118,10 @@ func mustConvDateTime(value any, layouts []string) time.Time {
 			}
 		}
 
-		panic(fmt.Sprintf("%s Not A Valid Date Time", v))
+		panic(fmt.Sprintf("'%s' Not A Valid Date Time", v))
 
 	default:
-		panic(fmt.Sprintf("%v Not A Valid Date Time", v))
+		panic(fmt.Sprintf("'%v' Not A Valid Date Time", v))
 	}
 }
 
@@ -142,7 +142,7 @@ func mustConvDateTimeList(name string, value any, layouts []string) []time.Time 
 			}
 
 			if len(times) != i+1 {
-				panic(fmt.Sprintf("%s Not A Valid Date Time", v[i]))
+				panic(fmt.Sprintf("'%s' Not A Valid Date Time", v[i]))
 			}
 		}
 
@@ -165,7 +165,7 @@ func mustConvDateTimeEnum(name string, value any, enum []string, layouts []strin
 		}
 
 		if len(options) != i+1 {
-			panic(fmt.Sprintf("%s Not A Valid Option", enum[i]))
+			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", name, enum[i]))
 		}
 	}
 
@@ -188,7 +188,7 @@ func mustConvDateTimeEnum(name string, value any, enum []string, layouts []strin
 			}
 		}
 
-		panic(fmt.Sprintf("%s Not A Valid Date Time", v))
+		panic(fmt.Sprintf("'%s' Not A Valid Date Time", v))
 
 	default:
 		panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", name, strings.Join(enum, ", ")))

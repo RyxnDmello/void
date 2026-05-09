@@ -25,7 +25,7 @@ func NewEmailFlag(name string) *Flag {
 				return mail
 			}
 
-			panic(fmt.Sprintf("%s Not A Valid Email Address", v))
+			panic(fmt.Sprintf("'%s' Not A Valid Email Address", v))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Email Address", flag.name))
@@ -61,7 +61,7 @@ func NewEmailListFlag(name string) *Flag {
 				mail, err := mail.ParseAddress(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("%s Not A Valid Email Address", v[i]))
+					panic(fmt.Sprintf("'%s' Not A Valid Email Address", v[i]))
 				}
 
 				mails = append(mails, mail)
@@ -92,7 +92,7 @@ func NewEmailEnumFlag(name string, enum []string) *Flag {
 		mail, err := mail.ParseAddress(enum[i])
 
 		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: %s", flag.name, enum[i]))
+			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
 		}
 
 		flag.enum = append(flag.enum, mail)
@@ -128,7 +128,7 @@ func NewEmailEnumFlag(name string, enum []string) *Flag {
 			mail, err := mail.ParseAddress(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("%s Not A Valid Email Address", v))
+				panic(fmt.Sprintf("'%s' Not A Valid Email Address", v))
 			}
 
 			if slices.Contains(options, mail.String()) {

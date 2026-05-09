@@ -12,7 +12,7 @@ func NewCustomFlag(name string, convert func(value any) any) *Flag {
 	name = MustParseFlagName(name)
 
 	if convert == nil {
-		panic(fmt.Sprintf("Flag '%s' Must Have A Type Conversion Handler", name))
+		panic(fmt.Sprintf("Flag '%s' Must Have A Type Handler", name))
 	}
 
 	return &Flag{

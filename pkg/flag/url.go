@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func NewUrlFlag(name string) *Flag {
+func NewURLFlag(name string) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
 	})
@@ -25,7 +25,7 @@ func NewUrlFlag(name string) *Flag {
 				return url
 			}
 
-			panic(fmt.Sprintf("%s Not A Valid URL", v))
+			panic(fmt.Sprintf("'%s' Not A Valid URL", v))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A URL", flag.name))
@@ -35,7 +35,7 @@ func NewUrlFlag(name string) *Flag {
 	return flag
 }
 
-func NewUrlListFlag(name string) *Flag {
+func NewURLListFlag(name string) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
 	})
@@ -61,7 +61,7 @@ func NewUrlListFlag(name string) *Flag {
 				url, err := url.Parse(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("%s Not A Valid URL", v[i]))
+					panic(fmt.Sprintf("'%s' Not A Valid URL", v[i]))
 				}
 
 				urls = append(urls, url)
@@ -79,7 +79,7 @@ func NewUrlListFlag(name string) *Flag {
 	return flag
 }
 
-func NewUrlEnumFlag(name string, enum []string) *Flag {
+func NewURLEnumFlag(name string, enum []string) *Flag {
 	flag := NewCustomFlag(name, func(value any) any {
 		return nil
 	})
@@ -92,7 +92,7 @@ func NewUrlEnumFlag(name string, enum []string) *Flag {
 		url, err := url.Parse(enum[i])
 
 		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: %s", flag.name, enum[i]))
+			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
 		}
 
 		flag.enum = append(flag.enum, url)
@@ -128,7 +128,7 @@ func NewUrlEnumFlag(name string, enum []string) *Flag {
 			url, err := url.Parse(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("%s Not A Valid URL", v))
+				panic(fmt.Sprintf("'%s' Not A Valid URL", v))
 			}
 
 			if slices.Contains(options, url.String()) {

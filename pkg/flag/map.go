@@ -2,6 +2,7 @@ package flag
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -143,7 +144,7 @@ func NewBoolMapFlag(name string) *Flag {
 					panic(fmt.Sprintf("Flag '%s' Must Be A Map Of Booleans", flag.name))
 				}
 
-				boolean, err := strconv.ParseBool(strings.ToLower(parts[1]))
+				boolean, err := strconv.ParseBool(parts[1])
 
 				if err != nil {
 					panic(fmt.Sprintf("Flag '%s' Must Be A Map Of Booleans", flag.name))
@@ -187,32 +188,18 @@ func NewComplexMapFlag(name string) *Flag {
 				key := parts[0]
 				val := parts[1]
 
-				if boolean, err := strconv.ParseBool(val); err == nil {
-					record[key] = boolean
-					continue
-				}
-
-				if len(strings.Split(val, ".")) == 1 {
-					integer, err := strconv.Atoi(val)
-
-					if err != nil {
-						record[key] = val
-						continue
-					}
-
+				if integer, err := strconv.Atoi(val); err == nil {
 					record[key] = integer
 					continue
 				}
 
-				if len(strings.Split(val, ".")) == 2 {
-					float, err := strconv.ParseFloat(val, 64)
-
-					if err != nil {
-						record[key] = val
-						continue
-					}
-
+				if float, err := strconv.ParseFloat(val, 64); err == nil {
 					record[key] = float
+					continue
+				}
+
+				if boolean, err := strconv.ParseBool(val); slices.Contains([]string{"true", "false", "TRUE", "FALSE"}, val) && err == nil {
+					record[key] = boolean
 					continue
 				}
 

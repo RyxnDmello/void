@@ -17,7 +17,7 @@ func NewFloatFlag(name string) *Flag {
 		case nil, float64:
 			return v
 
-		case int, string:
+		case int, float32, string:
 			if float, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
 				return float
 			}
@@ -43,6 +43,21 @@ func NewFloatListFlag(name string) *Flag {
 			return v
 
 		case []int:
+			floats := make([]float64, 0)
+
+			for i := range v {
+				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
+
+				if err != nil {
+					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
+				}
+
+				floats = append(floats, float)
+			}
+
+			return floats
+
+		case []float32:
 			floats := make([]float64, 0)
 
 			for i := range v {
@@ -107,7 +122,7 @@ func NewFloatEnumFlag(name string, enum []float64) *Flag {
 		}
 
 		switch v := value.(type) {
-		case int, float64, string:
+		case int, float32, float64, string:
 			raw := fmt.Sprintf("%v", v)
 
 			float, err := strconv.ParseFloat(raw, 64)

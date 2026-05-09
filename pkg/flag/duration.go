@@ -49,7 +49,7 @@ func NewDurationListFlag(name string) *Flag {
 				duration, err := time.ParseDuration(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
+					panic(fmt.Sprintf("'%s' Not A Valid Duration", v[i]))
 				}
 
 				durations = append(durations, duration)
@@ -80,7 +80,7 @@ func NewDurationEnumFlag(name string, enum []string) *Flag {
 		duration, err := time.ParseDuration(enum[i])
 
 		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: %s", flag.name, enum[i]))
+			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
 		}
 
 		flag.enum = append(flag.enum, duration)
@@ -109,7 +109,7 @@ func NewDurationEnumFlag(name string, enum []string) *Flag {
 			duration, err := time.ParseDuration(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("%s Not A Valid Duration", v))
+				panic(fmt.Sprintf("'%s' Not A Valid Duration", v))
 			}
 
 			if slices.Contains(options, duration.String()) {

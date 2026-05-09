@@ -113,9 +113,7 @@ func mustGetDir(value string, create bool) string {
 		panic(fmt.Sprintf("Failed To Create Directory '%s'", path))
 	}
 
-	info, err := os.Stat(path)
-
-	if err == nil {
+	if info, err := os.Stat(path); err == nil {
 		if info.IsDir() {
 			return path
 		}

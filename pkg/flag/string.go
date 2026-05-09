@@ -13,7 +13,7 @@ func NewStringFlag(name string) *Flag {
 
 	flag.SetConvert(func(value any) any {
 		switch v := value.(type) {
-		case nil, string:
+		case nil:
 			return v
 
 		default:

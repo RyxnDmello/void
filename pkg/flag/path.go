@@ -22,7 +22,7 @@ func NewPathFlag(name string, validate bool) *Flag {
 			return mustGetPath(v, validate)
 
 		default:
-			return fmt.Sprintf("Flag '%s' Must Be A Path", v)
+			return fmt.Sprintf("Flag '%s' Must Be A System Path", v)
 		}
 	})
 
@@ -49,7 +49,7 @@ func NewPathListFlag(name string, validate bool) *Flag {
 			return paths
 
 		default:
-			return fmt.Sprintf("Flag '%s' Must Be A Path", v)
+			return fmt.Sprintf("Flag '%s' Must Be A List Of System Paths", v)
 		}
 	})
 
