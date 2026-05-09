@@ -119,7 +119,7 @@ func NewUrlEnumFlag(name string, enum []string) *Flag {
 
 		case url.URL:
 			if slices.Contains(options, v.String()) {
-				return v
+				return &v
 			}
 
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
@@ -131,11 +131,11 @@ func NewUrlEnumFlag(name string, enum []string) *Flag {
 				panic(fmt.Sprintf("%s Not A Valid URL", v))
 			}
 
-			if !slices.Contains(options, url.String()) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			if slices.Contains(options, url.String()) {
+				return url
 			}
 
-			return url
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))

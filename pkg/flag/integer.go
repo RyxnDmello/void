@@ -101,11 +101,11 @@ func NewIntEnumFlag(name string, enum []int) *Flag {
 				panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
 			}
 
-			if !slices.Contains(options, raw) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			if slices.Contains(options, raw) {
+				return integer
 			}
 
-			return integer
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))

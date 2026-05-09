@@ -116,11 +116,11 @@ func NewFloatEnumFlag(name string, enum []float64) *Flag {
 				panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
 			}
 
-			if !slices.Contains(options, raw) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			if slices.Contains(options, raw) {
+				return float
 			}
 
-			return float
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))

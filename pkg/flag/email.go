@@ -103,26 +103,26 @@ func NewEmailEnumFlag(name string, enum []string) *Flag {
 			return nil
 		}
 
-		enum := make([]string, 0)
+		options := make([]string, 0)
 
 		for i := range flag.enum {
-			enum = append(enum, flag.enum[i].(*mail.Address).String())
+			options = append(options, flag.enum[i].(*mail.Address).String())
 		}
 
 		switch v := value.(type) {
 		case *mail.Address:
-			if slices.Contains(enum, v.String()) {
+			if slices.Contains(options, v.String()) {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		case mail.Address:
-			if slices.Contains(enum, v.String()) {
-				return v
+			if slices.Contains(options, v.String()) {
+				return &v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		case string:
 			mail, err := mail.ParseAddress(v)
@@ -131,14 +131,14 @@ func NewEmailEnumFlag(name string, enum []string) *Flag {
 				panic(fmt.Sprintf("%s Not A Valid Email Address", v))
 			}
 
-			if !slices.Contains(enum, mail.String()) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			if slices.Contains(options, mail.String()) {
+				return mail
 			}
 
-			return mail
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 		}
 	})
 

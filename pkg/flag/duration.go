@@ -112,11 +112,11 @@ func NewDurationEnumFlag(name string, enum []string) *Flag {
 				panic(fmt.Sprintf("%s Not A Valid Duration", v))
 			}
 
-			if !slices.Contains(options, duration.String()) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			if slices.Contains(options, duration.String()) {
+				return duration
 			}
 
-			return duration
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))

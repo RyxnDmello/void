@@ -58,17 +58,16 @@ func NewStringEnumFlag(name string, enum []string) *Flag {
 	}
 
 	flag.SetConvert(func(value any) any {
-		if value == nil {
-			return nil
-		}
-
 		switch v := value.(type) {
+		case nil:
+			return v
+
 		case string:
-			if !slices.Contains(enum, v) {
-				panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			if slices.Contains(enum, v) {
+				return v
 			}
 
-			return v
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
