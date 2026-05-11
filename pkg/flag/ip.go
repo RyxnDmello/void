@@ -103,7 +103,7 @@ func NewIPEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
 
 		case string:
 			ip := net.ParseIP(v)
@@ -113,7 +113,7 @@ func NewIPEnumFlag(name string, enum []string) *Flag {
 			}
 
 			if slices.Contains(options, ip.String()) {
-				return v
+				return ip
 			}
 
 			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))

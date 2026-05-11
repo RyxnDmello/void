@@ -2,8 +2,10 @@ package context
 
 import (
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/ryxndmello/void/pkg/flag"
@@ -119,6 +121,16 @@ func (context *Context) MustGetComplexMapFlag(name string) map[string]any {
 	return value
 }
 
+func (context *Context) MustGetRegexpFlag(name string) *regexp.Regexp {
+	value, ok := context.MustGetFlag(name).(*regexp.Regexp)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A Regular Expression", name))
+	}
+
+	return value
+}
+
 func (context *Context) MustGetTimeFlag(name string) time.Time {
 	value, ok := context.MustGetFlag(name).(time.Time)
 
@@ -139,11 +151,31 @@ func (context *Context) MustGetDurationFlag(name string) time.Duration {
 	return value
 }
 
-func (context *Context) MustGetUrlFlag(name string) *url.URL {
+func (context *Context) MustGetURLFlag(name string) *url.URL {
 	value, ok := context.MustGetFlag(name).(*url.URL)
 
 	if !ok {
 		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A URL", name))
+	}
+
+	return value
+}
+
+func (context *Context) MustGetIPFlag(name string) net.IP {
+	value, ok := context.MustGetFlag(name).(net.IP)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into An IPv4 Or IPv6 Address", name))
+	}
+
+	return value
+}
+
+func (context *Context) MustGetIPNetFlag(name string) *net.IPNet {
+	value, ok := context.MustGetFlag(name).(*net.IPNet)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A CIDR / Network Range", name))
 	}
 
 	return value
@@ -199,6 +231,16 @@ func (context *Context) MustGetBoolListFlag(name string) []bool {
 	return value
 }
 
+func (context *Context) MustGetRegexpListFlag(name string) []*regexp.Regexp {
+	value, ok := context.MustGetFlag(name).([]*regexp.Regexp)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of Regular Expressions", name))
+	}
+
+	return value
+}
+
 func (context *Context) MustGetTimeListFlag(name string) []time.Time {
 	value, ok := context.MustGetFlag(name).([]time.Time)
 
@@ -219,11 +261,31 @@ func (context *Context) MustGetDurationListFlag(name string) []time.Duration {
 	return value
 }
 
-func (context *Context) MustGetUrlListFlag(name string) []*url.URL {
+func (context *Context) MustGetURLListFlag(name string) []*url.URL {
 	value, ok := context.MustGetFlag(name).([]*url.URL)
 
 	if !ok {
 		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of URLs", name))
+	}
+
+	return value
+}
+
+func (context *Context) MustGetIPListFlag(name string) []net.IP {
+	value, ok := context.MustGetFlag(name).([]net.IP)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of IPv4 Or IPv6 Addresses", name))
+	}
+
+	return value
+}
+
+func (context *Context) MustGetIPNetListFlag(name string) []*net.IPNet {
+	value, ok := context.MustGetFlag(name).([]*net.IPNet)
+
+	if !ok {
+		panic(fmt.Sprintf("Flag '%s' Cannot Be Converted Into A List Of CIDRs / Network Ranges", name))
 	}
 
 	return value

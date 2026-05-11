@@ -19,7 +19,7 @@ func NewFileFlag(name string, create, force bool) *Flag {
 			return v
 
 		case string:
-			return mustGetFile(v, create, force)
+			return mustParseFile(v, create, force)
 
 		default:
 			panic(fmt.Sprintf("Flag '%s' Must Be A Path To A File", v))
@@ -43,7 +43,7 @@ func NewFileListFlag(name string, create, force bool) *Flag {
 			paths := make([]string, 0)
 
 			for i := range v {
-				paths = append(paths, mustGetFile(v[i], create, force))
+				paths = append(paths, mustParseFile(v[i], create, force))
 			}
 
 			return paths
@@ -68,7 +68,7 @@ func NewFileEnumFlag(name string, create, force bool, enum []string) *Flag {
 	}
 
 	for i := range enum {
-		flag.enum = append(flag.enum, mustGetFile(enum[i], create, force))
+		flag.enum = append(flag.enum, mustParseFile(enum[i], create, force))
 	}
 
 	flag.SetConvert(func(value any) any {
@@ -84,7 +84,7 @@ func NewFileEnumFlag(name string, create, force bool, enum []string) *Flag {
 
 		switch v := value.(type) {
 		case string:
-			if path := mustGetFile(v, false, false); slices.Contains(options, path) {
+			if path := mustParseFile(v, false, false); slices.Contains(options, path) {
 				return path
 			}
 
@@ -98,7 +98,7 @@ func NewFileEnumFlag(name string, create, force bool, enum []string) *Flag {
 	return flag
 }
 
-func mustGetFile(value string, create, force bool) string {
+func mustParseFile(value string, create, force bool) string {
 	path, err := filepath.Abs(value)
 
 	if err != nil {

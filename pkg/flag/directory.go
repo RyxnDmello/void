@@ -19,7 +19,7 @@ func NewDirFlag(name string, create bool) *Flag {
 			return v
 
 		case string:
-			return mustGetDir(v, create)
+			return mustParseDir(v, create)
 
 		default:
 			return fmt.Sprintf("Flag '%s' Must Be A Path To A Directory", v)
@@ -43,7 +43,7 @@ func NewDirListFlag(name string, create bool) *Flag {
 			paths := make([]string, 0)
 
 			for i := range v {
-				paths = append(paths, mustGetDir(v[i], create))
+				paths = append(paths, mustParseDir(v[i], create))
 			}
 
 			return paths
@@ -68,7 +68,7 @@ func NewDirEnumFlag(name string, create bool, enum []string) *Flag {
 	}
 
 	for i := range enum {
-		flag.enum = append(flag.enum, mustGetDir(enum[i], create))
+		flag.enum = append(flag.enum, mustParseDir(enum[i], create))
 	}
 
 	flag.SetConvert(func(value any) any {
@@ -84,7 +84,7 @@ func NewDirEnumFlag(name string, create bool, enum []string) *Flag {
 
 		switch v := value.(type) {
 		case string:
-			if path := mustGetDir(v, false); slices.Contains(options, path) {
+			if path := mustParseDir(v, false); slices.Contains(options, path) {
 				return path
 			}
 
@@ -98,7 +98,7 @@ func NewDirEnumFlag(name string, create bool, enum []string) *Flag {
 	return flag
 }
 
-func mustGetDir(value string, create bool) string {
+func mustParseDir(value string, create bool) string {
 	path, err := filepath.Abs(value)
 
 	if err != nil {

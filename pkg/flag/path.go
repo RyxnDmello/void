@@ -19,7 +19,7 @@ func NewPathFlag(name string, validate bool) *Flag {
 			return v
 
 		case string:
-			return mustGetPath(v, validate)
+			return mustParsePath(v, validate)
 
 		default:
 			return fmt.Sprintf("Flag '%s' Must Be A System Path", v)
@@ -43,7 +43,7 @@ func NewPathListFlag(name string, validate bool) *Flag {
 			paths := make([]string, 0)
 
 			for i := range v {
-				paths = append(paths, mustGetPath(v[i], validate))
+				paths = append(paths, mustParsePath(v[i], validate))
 			}
 
 			return paths
@@ -68,7 +68,7 @@ func NewPathEnumFlag(name string, validate bool, enum []string) *Flag {
 	}
 
 	for i := range enum {
-		flag.enum = append(flag.enum, mustGetPath(enum[i], validate))
+		flag.enum = append(flag.enum, mustParsePath(enum[i], validate))
 	}
 
 	flag.SetConvert(func(value any) any {
@@ -84,7 +84,7 @@ func NewPathEnumFlag(name string, validate bool, enum []string) *Flag {
 
 		switch v := value.(type) {
 		case string:
-			if path := mustGetPath(v, false); slices.Contains(options, path) {
+			if path := mustParsePath(v, false); slices.Contains(options, path) {
 				return path
 			}
 
@@ -98,7 +98,7 @@ func NewPathEnumFlag(name string, validate bool, enum []string) *Flag {
 	return flag
 }
 
-func mustGetPath(value string, validate bool) string {
+func mustParsePath(value string, validate bool) string {
 	path, err := filepath.Abs(value)
 
 	if err != nil {
