@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -11,7 +10,30 @@ import (
 	"github.com/ryxndmello/void/pkg/errors"
 )
 
-func resolveFile() (string, error) {
+func mustResolvePath() ([]string, string) {
+	filePath, err := mustResolveFile()
+
+	if err != nil {
+		panic(err)
+	}
+
+	var root = strings.Split(filepath.Dir(filePath), " ")
+	var base = strings.Split(filepath.Base(filePath), ".")[0]
+
+	if len(root) == 0 || root[0] == "." {
+		return []string{base}, base
+	}
+
+	if base == "root" {
+		return root, root[len(root)-1]
+	}
+
+	root = append(root, base)
+
+	return root, base
+}
+
+func mustResolveFile() (string, error) {
 	workPath, err := filepath.Abs(".")
 
 	if err != nil {
@@ -32,7 +54,7 @@ func resolveFile() (string, error) {
 		return "", errors.CommandNotFound
 	}
 
-	filePath = path.Clean(filePath)
+	filePath = filepath.Clean(filePath)
 
 	path, err := filepath.Rel(workPath, filePath)
 
@@ -45,27 +67,4 @@ func resolveFile() (string, error) {
 	path = strings.Join(parts, fmt.Sprintf("%v", filepath.Separator))
 
 	return path, nil
-}
-
-func resolvePath() ([]string, string) {
-	filePath, err := resolveFile()
-
-	if err != nil {
-		panic(err)
-	}
-
-	var root = strings.Split(filepath.Dir(filePath), " ")
-	var base = strings.Split(filepath.Base(filePath), ".")[0]
-
-	if len(root) == 0 || root[0] == "." {
-		return []string{base}, base
-	}
-
-	if base == "root" {
-		return root, root[len(root)-1]
-	}
-
-	root = append(root, base)
-
-	return root, base
 }

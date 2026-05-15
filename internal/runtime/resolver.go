@@ -108,13 +108,19 @@ func resolveFlags(cmd *command.Command, params []string) map[string]any {
 			name = parted[0]
 			values := strings.Split(parted[1], ",")
 			paramFlags[name] = append(paramFlags[name], values...)
-
 			index++
 			continue
 		}
 
 		if index+1 < len(params) && !strings.HasPrefix(params[index+1], "-") {
-			values := strings.Split(params[index+1], ",")
+			array := strings.Split(params[index+1], ",")
+
+			values := make([]string, 0)
+
+			for i := range array {
+				values = append(values, strings.Trim(array[i], "\""))
+			}
+
 			paramFlags[name] = append(paramFlags[name], values...)
 			index += 2
 			continue

@@ -1,0 +1,71 @@
+version: "3"
+
+vars:
+  LIN_GOOS: "linux"
+  MAC_GOOS: "darwin"
+  WIN_GOOS: "windows"
+
+  LIN_GOARCH: "amd64"
+  MAC_GOARCH: "amd64"
+  WIN_GOARCH: "amd64"
+
+  BIN_DIR: "./bin"
+
+  LIN_BIN_NAME: "void-lin-{{ .LIN_GOARCH }}"
+  MAC_BIN_NAME: "void-mac-{{ .MAC_GOARCH }}"
+  WIN_BIN_NAME: "void-win-{{ .WIN_GOARCH }}.exe"
+
+  LIN_BIN_PATH: "{{ .BIN_DIR }}/{{ .LIN_BIN_NAME }}"
+  MAC_BIN_PATH: "{{ .BIN_DIR }}/{{ .MAC_BIN_NAME }}"
+  WIN_BIN_PATH: "{{ .BIN_DIR }}/{{ .WIN_BIN_NAME }}"
+
+  DEV_PATH: "./cmd/dev/main.go"
+
+silent: true
+
+tasks:
+  tidy:
+    cmds:
+      - go mod tidy
+      - mkdir -p {{ .BIN_DIR }}
+
+  build:
+    desc: Builds executables for Windows, MacOS, and Linux.
+    deps: [clean, tidy]
+    cmds:
+      - task: build-lin
+      - task: build-mac
+      - task: build-win
+
+  build-lin:
+    desc: Builds an executable for Linux.
+    env:
+      CGO_ENABLED: "0"
+      GOOS: "{{ .LIN_GOOS }}"
+      GOARCH: "{{ .LIN_GOARCH }}"
+    cmd: go build -o {{ .LIN_BIN_PATH }} {{ .DEV_PATH }}
+
+  build-mac:
+    desc: Builds an executable for MacOS.
+    env:
+      GOOS: "{{ .MAC_GOOS }}"
+      GOARCH: "{{ .MAC_GOARCH }}"
+      CGO_ENABLED: "0"
+    cmd: go build -o {{ .MAC_BIN_PATH }} {{ .DEV_PATH }}
+
+  build-win:
+    desc: Builds an executable for Windows.
+    env:
+      GOOS: "{{ .WIN_GOOS }}"
+      GOARCH: "{{ .WIN_GOARCH }}"
+      CGO_ENABLED: "0"
+    cmd: go build -o {{ .WIN_BIN_PATH }} {{ .DEV_PATH }}
+
+  run:
+    desc: Builds a Windows executable and runs it. Arguments are optional.
+    deps: [build-win]
+    cmd: "{{ .WIN_BIN_PATH }} {{ .CLI_ARGS }}"
+
+  clean:
+    desc: Removes the build folder and deletes all executables.
+    cmd: rm -rf {{ .BIN_DIR }}

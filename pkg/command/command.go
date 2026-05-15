@@ -25,7 +25,7 @@ type Command struct {
 }
 
 func NewCommand() *Command {
-	path, name := resolvePath()
+	path, name := mustResolvePath()
 
 	return &Command{
 		use:         name,

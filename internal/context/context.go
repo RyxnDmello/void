@@ -1,5 +1,12 @@
 package context
 
+import (
+	"fmt"
+
+	"github.com/ryxndmello/void/pkg/argument"
+	"github.com/ryxndmello/void/pkg/flag"
+)
+
 type Context struct {
 	path      string
 	flags     map[string]any
@@ -14,48 +21,32 @@ func NewContext(path string, arguments map[string]any, flags map[string]any) *Co
 	}
 }
 
+func (context *Context) Path() string {
+	return context.path
+}
+
 func (context *Context) Args() map[string]any {
 	return context.arguments
 }
 
 func (context *Context) GetArg(name string) any {
-	return getValue(context.arguments, name)
+	name = argument.MustParseArgumentName(name)
+
+	if len(context.arguments) == 0 {
+		return nil
+	}
+
+	return context.arguments[name]
 }
 
 func (context *Context) MustGetArg(name string) any {
-	return mustGetValue(context.arguments, name)
-}
+	value := context.GetArg(name)
 
-func (context *Context) MustGetStringArg(name string) string {
-	return mustGetString(context.arguments, name)
-}
+	if value == nil {
+		panic(fmt.Sprintf("Argument '%s' Does Not Exist", name))
+	}
 
-func (context *Context) MustGetIntArg(name string) int {
-	return mustGetInteger(context.arguments, name)
-}
-
-func (context *Context) MustGetFloatArg(name string) float64 {
-	return mustGetFloat(context.arguments, name)
-}
-
-func (context *Context) MustGetBoolArg(name string) bool {
-	return mustGetBool(context.arguments, name)
-}
-
-func (context *Context) MustGetListArg(name string) []string {
-	return mustGetList(context.arguments, name)
-}
-
-func (context *Context) MustGetIntListArg(name string) []int {
-	return mustGetIntList(context.arguments, name)
-}
-
-func (context *Context) MustGetFloatListArg(name string) []float64 {
-	return mustGetFloatList(context.arguments, name)
-}
-
-func (context *Context) MustGetBoolListArg(name string) []bool {
-	return mustGetBoolList(context.arguments, name)
+	return value
 }
 
 func (context *Context) Flags() map[string]any {
@@ -63,41 +54,21 @@ func (context *Context) Flags() map[string]any {
 }
 
 func (context *Context) GetFlag(name string) any {
-	return getValue(context.flags, name)
+	name = flag.MustParseFlagName(name)
+
+	if len(context.flags) == 0 {
+		return nil
+	}
+
+	return context.flags[name]
 }
 
 func (context *Context) MustGetFlag(name string) any {
-	return mustGetValue(context.flags, name)
-}
+	value := context.GetFlag(name)
 
-func (context *Context) MustGetStringFlag(name string) string {
-	return mustGetString(context.flags, name)
-}
+	if value == nil {
+		panic(fmt.Sprintf("Flag '%s' Does Not Exist", name))
+	}
 
-func (context *Context) MustGetIntFlag(name string) int {
-	return mustGetInteger(context.flags, name)
-}
-
-func (context *Context) MustGetFloatFlag(name string) float64 {
-	return mustGetFloat(context.flags, name)
-}
-
-func (context *Context) MustGetBoolFlag(name string) bool {
-	return mustGetBool(context.flags, name)
-}
-
-func (context *Context) MustGetListFlag(name string) []string {
-	return mustGetList(context.flags, name)
-}
-
-func (context *Context) MustGetIntListFlag(name string) []int {
-	return mustGetIntList(context.flags, name)
-}
-
-func (context *Context) MustGetFloatListFlag(name string) []float64 {
-	return mustGetFloatList(context.flags, name)
-}
-
-func (context *Context) MustGetBoolListFlag(name string) []bool {
-	return mustGetBoolList(context.flags, name)
+	return value
 }
