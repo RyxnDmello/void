@@ -2,35 +2,27 @@ package void
 
 import (
 	"fmt"
-
-	"github.com/ryxndmello/void/internal/context"
-	"github.com/ryxndmello/void/internal/runtime"
-	"github.com/ryxndmello/void/pkg/command"
 )
 
 type Void struct {
-	commands map[string]*command.Command
+	commands map[string]*Command
 }
 
 func NewApp() *Void {
 	return &Void{
-		commands: make(map[string]*command.Command),
+		commands: make(map[string]*Command),
 	}
 }
 
-func (void *Void) Commands() map[string]*command.Command {
-	return void.commands
-}
-
-func (void *Void) SetCommands(commands ...*command.Command) *Void {
+func (void *Void) SetCommands(commands ...*Command) *Void {
 	for i := range commands {
-		path := commands[i].Path()
+		path := commands[i].getPath()
 
-		if command := void.commands[path]; command != nil {
+		if void.commands[path] != nil {
 			panic(fmt.Sprintf("Command With Path '%s' Already Exists", path))
 		}
 
-		commands[i].MustValidate()
+		commands[i].mustValidate()
 
 		void.commands[path] = commands[i]
 	}
@@ -45,9 +37,9 @@ func (void *Void) Run() error {
 		}
 	}()
 
-	path, command, arguments, flags := runtime.Parse(void.commands)
+	path, command, arguments, flags := parse(void.commands)
 
-	context := context.NewContext(path, arguments, flags)
+	context := NewContext(path, arguments, flags)
 
-	return runtime.Execute(context, command)
+	return Execute(context, command)
 }

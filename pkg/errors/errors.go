@@ -1,7 +1,0 @@
-package errors
-
-import (
-	"errors"
-)
-
-var CommandNotFound error = errors.New("Command Not Found")
