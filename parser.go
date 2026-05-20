@@ -1,10 +1,8 @@
 package void
 
-func parse(commands map[string]*Command) (string, *Command, map[string]any, map[string]any) {
-	path, command, argumentParams, flagParams := mustResolveCommand(commands)
-
-	flags := mustResolveFlags(command, flagParams)
+func parse(pathToCommand map[string]*Command) (*Command, map[string]any, map[string]any) {
+	command, flagParams, argumentParams := mustResolveCommand(pathToCommand)
 	arguments := mustResolveArguments(command, argumentParams)
-
-	return path, command, arguments, flags
+	flags := mustResolveFlags(command, flagParams)
+	return command, arguments, flags
 }

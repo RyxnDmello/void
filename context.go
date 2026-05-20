@@ -6,25 +6,37 @@ import (
 	"net/mail"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 )
 
+type commandView interface {
+	Name() string
+	Tagline() string
+	Description() string
+	Path() []string
+}
+
 type Context struct {
-	path      string
+	command   commandView
 	flags     map[string]any
 	arguments map[string]any
 }
 
-func NewContext(path string, arguments map[string]any, flags map[string]any) *Context {
+func newContext(command *Command, arguments map[string]any, flags map[string]any) *Context {
 	return &Context{
-		path:      path,
+		command:   command,
 		flags:     flags,
 		arguments: arguments,
 	}
 }
 
+func (context *Context) Command() commandView {
+	return context.command
+}
+
 func (context *Context) Path() string {
-	return context.path
+	return strings.Join(context.command.Path(), " ")
 }
 
 func (context *Context) Args() map[string]any {

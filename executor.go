@@ -1,6 +1,6 @@
 package void
 
-func Execute(context *Context, command *Command) error {
+func execute(command *Command, context *Context) error {
 	err := command.getPreExecute(context)
 
 	if err != nil {

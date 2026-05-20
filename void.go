@@ -2,6 +2,7 @@ package void
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Void struct {
@@ -16,7 +17,7 @@ func NewApp() *Void {
 
 func (void *Void) SetCommands(commands ...*Command) *Void {
 	for i := range commands {
-		path := commands[i].getPath()
+		path := strings.Join(commands[i].path, " ")
 
 		if void.commands[path] != nil {
 			panic(fmt.Sprintf("Command With Path '%s' Already Exists", path))
@@ -37,9 +38,9 @@ func (void *Void) Run() error {
 		}
 	}()
 
-	path, command, arguments, flags := parse(void.commands)
+	command, arguments, flags := parse(void.commands)
 
-	context := NewContext(path, arguments, flags)
+	context := newContext(command, arguments, flags)
 
-	return Execute(context, command)
+	return execute(command, context)
 }

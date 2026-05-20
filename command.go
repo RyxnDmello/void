@@ -9,8 +9,9 @@ import (
 	"strings"
 )
 
+var routesPathRegexp = regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
+
 type Command struct {
-	use         string
 	name        string
 	tagline     string
 	description string
@@ -27,7 +28,6 @@ func NewCommand() *Command {
 	path, name := mustResolveCommandPath()
 
 	return &Command{
-		use:         name,
 		name:        name,
 		tagline:     "",
 		description: "",
@@ -41,14 +41,30 @@ func NewCommand() *Command {
 	}
 }
 
+func (command *Command) Name() string {
+	return command.name
+}
+
+func (command *Command) Tagline() string {
+	return command.tagline
+}
+
 func (command *Command) SetTagline(tagline string) *Command {
 	command.tagline = strings.Trim(tagline, " ")
 	return command
 }
 
+func (command *Command) Description() string {
+	return command.tagline
+}
+
 func (command *Command) SetDescription(description string) *Command {
 	command.description = strings.Trim(description, " ")
 	return command
+}
+
+func (command *Command) Path() []string {
+	return command.path
 }
 
 func (command *Command) SetArguments(arguments ...*Argument) *Command {
@@ -124,10 +140,6 @@ func (command *Command) HandlePreExecute(preExecute func(ctx *Context) error) *C
 func (command *Command) HandlePostExecute(postExecute func(ctx *Context) error) *Command {
 	command.postExecute = postExecute
 	return command
-}
-
-func (command *Command) getPath() string {
-	return strings.Join(command.path, " ")
 }
 
 func (command *Command) getArgs() ([]*Argument, []*Argument, *Argument) {
@@ -227,14 +239,10 @@ func (command *Command) mustValidate() {
 }
 
 func mustResolveCommandPath() ([]string, string) {
-	filePath, err := mustResolveCommandFile()
+	route := mustResolveCommandRoute()
 
-	if err != nil {
-		panic(err)
-	}
-
-	root := strings.Split(filepath.Dir(filePath), " ")
-	base := strings.Split(filepath.Base(filePath), ".")[0]
+	root := strings.Split(filepath.Dir(route), " ")
+	base, _, _ := strings.Cut(filepath.Base(route), ".")
 
 	if len(root) == 0 || root[0] == "." {
 		return []string{base}, base
@@ -249,38 +257,30 @@ func mustResolveCommandPath() ([]string, string) {
 	return root, base
 }
 
-func mustResolveCommandFile() (string, error) {
+func mustResolveCommandRoute() string {
 	workPath, err := filepath.Abs(".")
 
 	if err != nil {
-		return "", CommandNotFound
+		panic(CommandNotFound)
 	}
 
 	_, filePath, _, ok := runtime.Caller(3)
 
 	if !ok {
-		return "", CommandNotFound
+		panic(CommandNotFound)
 	}
 
-	pattern := regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
-
-	valid := pattern.MatchString(filePath)
-
-	if !valid {
-		return "", CommandNotFound
+	if !routesPathRegexp.MatchString(filePath) {
+		panic(CommandNotFound)
 	}
 
-	filePath = filepath.Clean(filePath)
-
-	path, err := filepath.Rel(workPath, filePath)
+	relFilePath, err := filepath.Rel(workPath, filepath.Clean(filePath))
 
 	if err != nil {
-		return "", CommandNotFound
+		panic(CommandNotFound)
 	}
 
-	parts := strings.Split(path, "\\commands\\")[1:]
+	route := strings.Join(strings.Split(relFilePath, "\\commands\\")[1:], "")
 
-	path = strings.Join(parts, fmt.Sprintf("%v", filepath.Separator))
-
-	return path, nil
+	return route
 }
