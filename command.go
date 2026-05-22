@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var routesPathRegexp = regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
+var routesRegexp = regexp.MustCompile(`^.*/cmd/[^/]+/commands(/.*)?\.go$`)
 
 type Command struct {
 	name        string
@@ -55,7 +55,7 @@ func (command *Command) SetTagline(tagline string) *Command {
 }
 
 func (command *Command) Description() string {
-	return command.tagline
+	return command.description
 }
 
 func (command *Command) SetDescription(description string) *Command {
@@ -68,52 +68,11 @@ func (command *Command) Path() []string {
 }
 
 func (command *Command) SetArguments(arguments ...*Argument) *Command {
-	var variadic *Argument
-
-	names := make([]string, 0)
-	required := make([]*Argument, 0)
-	optional := make([]*Argument, 0)
-
-	for i := range arguments {
-		arguments[i].mustValidate()
-
-		if slices.Contains(names, arguments[i].name) {
-			panic(fmt.Sprintf("Command '%s' Must Have Unique Arguments", command.name))
-		}
-
-		if arguments[i].variadic {
-			if variadic != nil {
-				panic(fmt.Sprintf("Command '%s' Already Contains A Variadic Argument '%s'", command.name, variadic.name))
-			}
-
-			variadic = arguments[i]
-			continue
-		}
-
-		if arguments[i].required {
-			required = append(required, arguments[i])
-		} else {
-			optional = append(optional, arguments[i])
-		}
-
-		names = append(names, arguments[i].name)
-	}
-
-	command.arguments = append(command.arguments, required...)
-	command.arguments = append(command.arguments, optional...)
-
-	if variadic != nil {
-		command.arguments = append(command.arguments, variadic)
-	}
-
+	command.arguments = arguments
 	return command
 }
 
 func (command *Command) SetFlags(flags ...*Flag) *Command {
-	for i := range flags {
-		flags[i].mustValidate()
-	}
-
 	command.flags = flags
 	return command
 }
@@ -124,10 +83,6 @@ func (command *Command) MarkDisabled() *Command {
 }
 
 func (command *Command) HandleExecute(execute func(ctx *Context) error) *Command {
-	if execute == nil {
-		panic("Command Execution Handler Must Be Provided")
-	}
-
 	command.execute = execute
 	return command
 }
@@ -142,7 +97,7 @@ func (command *Command) HandlePostExecute(postExecute func(ctx *Context) error) 
 	return command
 }
 
-func (command *Command) getArgs() ([]*Argument, []*Argument, *Argument) {
+func (command *Command) getArguments() ([]*Argument, []*Argument, *Argument) {
 	var variadic *Argument
 
 	required := make([]*Argument, 0)
@@ -180,65 +135,195 @@ func (command *Command) getFlags() ([]*Flag, []*Flag) {
 	return required, optional
 }
 
-func (command *Command) getExecute(ctx *Context) error {
-	if ctx == nil {
-		panic("Command Execution Handler Must Have A Context")
+func (command *Command) mustNormalizeArguments() *Command {
+	var variadic *Argument
+
+	names := make([]string, 0)
+	required := make([]*Argument, 0)
+	optional := make([]*Argument, 0)
+
+	for i := range command.arguments {
+		command.arguments[i].mustValidate()
+
+		if slices.Contains(names, command.arguments[i].name) {
+			panic(
+				NewDefinitionError(DuplicateCommandArgument, nil).
+					WithCommand(command).
+					WithArgument(command.arguments[i]).
+					WithMessage(
+						"Duplicate command arguments detected.",
+					).
+					WithExpected(
+						"Each command argument must have a unique name.",
+					).
+					WithReceived(
+						fmt.Sprintf("Duplicate argument: %s", command.arguments[i].name),
+					).
+					WithSuggestion(
+						"Rename or remove duplicate command arguments.",
+					),
+			)
+		}
+
+		if command.arguments[i].variadic {
+			if variadic != nil {
+				panic(
+					NewDefinitionError(MultipleVariadicArguments, nil).
+						WithCommand(command).
+						WithArgument(command.arguments[i]).
+						WithMessage(
+							"Multiple variadic arguments were defined.",
+						).
+						WithExpected(
+							"A command may only define a single variadic argument.",
+						).
+						WithReceived(
+							fmt.Sprintf("Existing variadic argument: %s", variadic.name),
+						).
+						WithSuggestion(
+							"Remove additional variadic arguments from the command definition.",
+						),
+				)
+			}
+
+			variadic = command.arguments[i]
+			continue
+		}
+
+		if command.arguments[i].required {
+			required = append(required, command.arguments[i])
+		} else {
+			optional = append(optional, command.arguments[i])
+		}
+
+		names = append(names, command.arguments[i].name)
 	}
 
-	if command.execute == nil {
-		panic("Command Execution Handler Must Be Provided")
+	command.arguments = make([]*Argument, 0)
+	command.arguments = append(command.arguments, required...)
+	command.arguments = append(command.arguments, optional...)
+
+	if variadic != nil {
+		command.arguments = append(command.arguments, variadic)
 	}
 
-	return command.execute(ctx)
+	return command
 }
 
-func (command *Command) getPreExecute(ctx *Context) error {
-	if ctx == nil {
-		panic("Command Pre Execution Handler Must Have A Context")
+func (command *Command) mustNormalizeFlags() *Command {
+	names := make([]string, 0)
+	required := make([]*Flag, 0)
+	optional := make([]*Flag, 0)
+
+	for i := range command.flags {
+		command.flags[i].mustValidate()
+
+		if slices.Contains(names, command.flags[i].name) {
+			panic(
+				NewDefinitionError(DuplicateCommandFlag, nil).
+					WithFlag(command.flags[i]).
+					WithCommand(command).
+					WithMessage(
+						"Duplicate flags detected.",
+					).
+					WithExpected(
+						"Each flag must have a unique name.",
+					).
+					WithReceived(
+						fmt.Sprintf("Duplicate flag: %s", command.flags[i].name),
+					).
+					WithSuggestion(
+						"Rename or remove duplicate flags.",
+					),
+			)
+		}
+
+		if command.flags[i].required {
+			required = append(required, command.flags[i])
+		} else {
+			optional = append(optional, command.flags[i])
+		}
+
+		names = append(names, command.flags[i].name)
 	}
 
-	if command.preExecute == nil {
-		return nil
-	}
-
-	return command.preExecute(ctx)
-}
-
-func (command *Command) getPostExecute(ctx *Context) error {
-	if ctx == nil {
-		panic("Command Post Execution Handler Must Have A Context")
-	}
-
-	if command.postExecute == nil {
-		return nil
-	}
-
-	return command.postExecute(ctx)
+	command.flags = make([]*Flag, 0)
+	command.flags = append(command.flags, required...)
+	command.flags = append(command.flags, optional...)
+	return command
 }
 
 func (command *Command) mustValidate() {
 	if len(command.path) == 0 {
-		panic("Every Command Must Have A Path")
+		panic(
+			NewDefinitionError(CommandPathRequired, nil).
+				WithMessage(
+					"Command path is required.",
+				).
+				WithExpected(
+					"Every command must define a valid command path.",
+				),
+		)
 	}
 
 	if len(command.name) == 0 {
-		panic("Every Command Must Have A Name")
+		panic(
+			NewDefinitionError(CommandNameRequired, nil).
+				WithMessage(
+					"Command name is required.",
+				).
+				WithExpected(
+					"Every command must define a command name.",
+				),
+		)
 	}
 
 	if len(command.tagline) == 0 {
-		panic(fmt.Sprintf("Command '%s' Must Have A Tagline", command.name))
+		panic(
+			NewDefinitionError(CommandTaglineRequired, nil).
+				WithMessage(
+					"Command tagline is required.",
+				).
+				WithExpected(
+					fmt.Sprintf("Command '%s' must define a tagline.", command.name),
+				),
+		)
 	}
 
 	if len(command.description) == 0 {
-		panic(fmt.Sprintf("Command '%s' Must Have A Description", command.name))
+		panic(
+			NewDefinitionError(CommandDescriptionRequired, nil).
+				WithMessage(
+					"Command description is required.",
+				).
+				WithExpected(
+					fmt.Sprintf("Command '%s' must define a description.", command.name),
+				),
+		)
 	}
 
 	if command.execute == nil {
-		panic(fmt.Sprintf("Command '%s' Must Have An Execution Handler", command.name))
+		panic(
+			NewDefinitionError(CommandExecuteHandlerRequired, nil).
+				WithCommand(command).
+				WithMessage(
+					"Command execution handler is required.",
+				).
+				WithExpected(
+					"Every command must define an execution handler using HandleExecute().",
+				).
+				WithSuggestion(
+					"Attach an execution handler to the command definition.",
+				),
+		)
 	}
+
+	command.mustNormalizeArguments().mustNormalizeFlags()
 }
 
 func mustResolveCommandPath() ([]string, string) {
+	defer onError()
+
 	route := mustResolveCommandRoute()
 
 	root := strings.Split(filepath.Dir(route), " ")
@@ -261,23 +346,61 @@ func mustResolveCommandRoute() string {
 	workPath, err := filepath.Abs(".")
 
 	if err != nil {
-		panic(CommandNotFound)
+		panic(
+			NewFrameworkError(InvalidCommandRoute, err).
+				WithMessage(
+					"Command route resolution failed.",
+				),
+		)
 	}
 
 	_, filePath, _, ok := runtime.Caller(3)
 
 	if !ok {
-		panic(CommandNotFound)
+		panic(
+			NewFrameworkError(InvalidCommandRoute, nil).
+				WithMessage(
+					"Command route resolution failed.",
+				),
+		)
 	}
 
-	if !routesPathRegexp.MatchString(filePath) {
-		panic(CommandNotFound)
+	if !routesRegexp.MatchString(filePath) {
+		panic(
+			NewFrameworkError(InvalidCommandRoute, nil).
+				WithMessage(
+					"Invalid command route detected.",
+				).
+				WithExpected(
+					"Command files must exist within '/cmd/[app]/commands/*'.",
+				).
+				WithReceived(
+					fmt.Sprintf("Resolved invalid command file path: %s", filePath),
+				).
+				WithSuggestion(
+					"Ensure the command file is placed inside the command routes directory.",
+				),
+		)
 	}
 
 	relFilePath, err := filepath.Rel(workPath, filepath.Clean(filePath))
 
 	if err != nil {
-		panic(CommandNotFound)
+		panic(
+			NewFrameworkError(InvalidCommandRoute, err).
+				WithMessage(
+					"Failed to resolve command route.",
+				).
+				WithExpected(
+					"Commands must be defined within '/cmd/[app]/commands/*'.",
+				).
+				WithReceived(
+					fmt.Sprintf("Resolved file path '%s' is outside the command routes directory.", filePath),
+				).
+				WithSuggestion(
+					"Move the command file into '/cmd/[app]/commands/*'.",
+				),
+		)
 	}
 
 	route := strings.Join(strings.Split(relFilePath, "\\commands\\")[1:], "")

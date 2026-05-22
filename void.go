@@ -1,42 +1,22 @@
 package void
 
-import (
-	"fmt"
-	"strings"
-)
-
 type Void struct {
-	commands map[string]*Command
+	commands []*Command
 }
 
 func NewApp() *Void {
 	return &Void{
-		commands: make(map[string]*Command),
+		commands: make([]*Command, 0),
 	}
 }
 
 func (void *Void) SetCommands(commands ...*Command) *Void {
-	for i := range commands {
-		path := strings.Join(commands[i].path, " ")
-
-		if void.commands[path] != nil {
-			panic(fmt.Sprintf("Command With Path '%s' Already Exists", path))
-		}
-
-		commands[i].mustValidate()
-
-		void.commands[path] = commands[i]
-	}
-
+	void.commands = commands
 	return void
 }
 
 func (void *Void) Run() error {
-	defer func() {
-		if recover := recover(); recover != nil {
-			fmt.Println(recover)
-		}
-	}()
+	defer onError()
 
 	command, arguments, flags := parse(void.commands)
 

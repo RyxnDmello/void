@@ -26,7 +26,7 @@ func NewCustomArgument(name string, handleConvert func(value any) any) *Argument
 		variadic:    false,
 		value:       nil,
 		enum:        nil,
-		covert:      nil,
+		covert:      handleConvert,
 		validate:    nil,
 	}
 }
@@ -46,7 +46,7 @@ func NewCustomFlag(name string, handleConvert func(value any) any) *Flag {
 		variadic:    false,
 		value:       nil,
 		enum:        nil,
-		covert:      nil,
+		covert:      handleConvert,
 		validate:    nil,
 	}
 }
