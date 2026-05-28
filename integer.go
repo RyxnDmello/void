@@ -7,37 +7,14 @@ import (
 	"strings"
 )
 
+const (
+	InvalidInteger       ErrorCode = "INVALID_INTEGER"
+	InvalidIntegerList   ErrorCode = "INVALID_INTEGER_LIST"
+	InvalidIntegerOption ErrorCode = "INVALID_INTEGER_OPTION"
+)
+
 func NewIntArgument(name string) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	argument.HandleConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, int:
-			return v
-
-		case string:
-			if result, err := strconv.Atoi(v); err == nil {
-				return result
-			}
-
-			panic(fmt.Sprintf("Argument '%s' Must Be An Integer", argument.name))
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be An Integer", argument.name))
-		}
-	})
-
-	return argument
-}
-
-func NewIntFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomArgument(name, func(argument argumentView, value any) any {
 		switch v := value.(type) {
 		case nil, int:
 			return v
@@ -47,57 +24,46 @@ func NewIntFlag(name string) *Flag {
 				return integer
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
+			panic(
+				NewUsageError(InvalidInteger, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid integer argument detected.",
+					).
+					WithExpected(
+						"Expected a valid integer value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid integer value.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
+			panic(
+				NewUsageError(InvalidInteger, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid integer argument detected.",
+					).
+					WithExpected(
+						"Expected a valid integer value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid integer value.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewIntListArgument(name string) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	argument.HandleConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []int:
-			return v
-
-		case []string:
-			result := make([]int, 0)
-
-			for i := range v {
-				value, err := strconv.Atoi(v[i])
-
-				if err != nil {
-					panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
-				}
-
-				result = append(result, value)
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be A List Of Integers", argument.name))
-		}
-	})
-
-	argument.variadic = true
-
-	return argument
-}
-
-func NewIntListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListArgument(name, func(argument argumentView, value any) any {
 		switch v := value.(type) {
 		case nil, []int:
 			return v
@@ -109,7 +75,22 @@ func NewIntListFlag(name string) *Flag {
 				integer, err := strconv.Atoi(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
+					panic(
+						NewUsageError(InvalidIntegerList, nil).
+							WithArgument(argument).
+							WithMessage(
+								"Invalid integer list argument detected.",
+							).
+							WithExpected(
+								"Expected a list of valid integer values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid integer value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of integer values.",
+							),
+					)
 				}
 
 				integers = append(integers, integer)
@@ -118,77 +99,28 @@ func NewIntListFlag(name string) *Flag {
 			return integers
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Integers", flag.name))
+			panic(
+				NewUsageError(InvalidIntegerList, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid integer list argument detected.",
+					).
+					WithExpected(
+						"Expected a list of valid integer values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of integer values.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewIntEnumArgument(name string, enum []int) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Argument '%s' Must Have At Least 1 Option", argument.name))
-	}
-
-	for i := range enum {
-		argument.enum = append(argument.enum, enum[i])
-	}
-
-	argument.HandleConvert(func(value any) any {
-		if value == nil {
-			return nil
-		}
-
-		enum := make([]string, 0)
-
-		for i := range argument.enum {
-			enum = append(enum, fmt.Sprintf("%v", argument.enum[i]))
-		}
-
-		switch v := value.(type) {
-		case int, string:
-			raw := fmt.Sprintf("%v", v)
-
-			result, err := strconv.Atoi(raw)
-
-			if err != nil {
-				panic(fmt.Sprintf("Argument '%s' Must Be An Integer", argument.name))
-			}
-
-			if !slices.Contains(enum, raw) {
-				panic(fmt.Sprintf("Argument '%s' Must Be One Of %s", argument.name, strings.Join(enum, ", ")))
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be One Of %s", argument.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return argument
-}
-
-func NewIntEnumFlag(name string, enum []int) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		flag.enum = append(flag.enum, enum[i])
-	}
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomEnumArgument(name, enum, func(argument argumentView, value any) any {
 		if value == nil {
 			return nil
 		}
@@ -206,19 +138,247 @@ func NewIntEnumFlag(name string, enum []int) *Flag {
 			integer, err := strconv.Atoi(raw)
 
 			if err != nil {
-				panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
+				panic(
+					NewUsageError(InvalidIntegerOption, nil).
+						WithArgument(argument).
+						WithMessage(
+							"Invalid integer enum argument detected.",
+						).
+						WithExpected(
+							"Expected a valid integer value.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", raw),
+						).
+						WithSuggestion(
+							"Provide a valid integer value.",
+						),
+				)
 			}
 
 			if slices.Contains(options, raw) {
 				return integer
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIntegerOption, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Unsupported integer enum argument detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %d", integer),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum integer values.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIntegerOption, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Unsupported integer enum argument detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Argument '%s' must receive one of: %s", argument.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum integer values.",
+					),
+			)
 		}
 	})
+}
 
-	return flag
+func NewIntFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
+		switch v := value.(type) {
+		case nil, int:
+			return v
+
+		case string:
+			if integer, err := strconv.Atoi(v); err == nil {
+				return integer
+			}
+
+			panic(
+				NewUsageError(InvalidInteger, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid integer flag detected.",
+					).
+					WithExpected(
+						"Expected a valid integer value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid integer value.",
+					),
+			)
+
+		default:
+			panic(
+				NewUsageError(InvalidInteger, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid integer flag detected.",
+					).
+					WithExpected(
+						"Expected a valid integer value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid integer value.",
+					),
+			)
+		}
+	})
+}
+
+func NewIntListFlag(name string) *Flag {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
+		switch v := value.(type) {
+		case nil, []int:
+			return v
+
+		case []string:
+			integers := make([]int, 0)
+
+			for i := range v {
+				integer, err := strconv.Atoi(v[i])
+
+				if err != nil {
+					panic(
+						NewUsageError(InvalidIntegerList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid integer list flag detected.",
+							).
+							WithExpected(
+								"Expected a list of valid integer values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid integer value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of integer values.",
+							),
+					)
+				}
+
+				integers = append(integers, integer)
+			}
+
+			return integers
+
+		default:
+			panic(
+				NewUsageError(InvalidIntegerList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid integer list flag detected.",
+					).
+					WithExpected(
+						"Expected a list of valid integer values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of integer values.",
+					),
+			)
+		}
+	})
+}
+
+func NewIntEnumFlag(name string, enum []int) *Flag {
+	return NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
+		if value == nil {
+			return nil
+		}
+
+		options := make([]string, 0)
+
+		for i := range enum {
+			options = append(options, fmt.Sprintf("%v", enum[i]))
+		}
+
+		switch v := value.(type) {
+		case int, string:
+			raw := fmt.Sprintf("%v", v)
+
+			integer, err := strconv.Atoi(raw)
+
+			if err != nil {
+				panic(
+					NewUsageError(InvalidIntegerOption, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid integer enum flag detected.",
+						).
+						WithExpected(
+							"Expected a valid integer value.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", raw),
+						).
+						WithSuggestion(
+							"Provide a valid integer value.",
+						),
+				)
+			}
+
+			if slices.Contains(options, raw) {
+				return integer
+			}
+
+			panic(
+				NewUsageError(InvalidIntegerOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported integer enum flag detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %d", integer),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum integer values.",
+					),
+			)
+
+		default:
+			panic(
+				NewUsageError(InvalidIntegerOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported integer enum flag detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum integer values.",
+					),
+			)
+		}
+	})
 }

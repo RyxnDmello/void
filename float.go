@@ -7,39 +7,14 @@ import (
 	"strings"
 )
 
+const (
+	InvalidFloat       ErrorCode = "INVALID_FLOAT"
+	InvalidFloatList   ErrorCode = "INVALID_FLOAT_LIST"
+	InvalidFloatOption ErrorCode = "INVALID_FLOAT_OPTION"
+)
+
 func NewFloatArgument(name string) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	argument.HandleConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, float64:
-			return v
-
-		case int, string:
-			raw := fmt.Sprintf("%v", v)
-
-			if result, err := strconv.ParseFloat(raw, 64); err == nil {
-				return result
-			}
-
-			panic(fmt.Sprintf("Argument '%s' Must Be A Float", argument.name))
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be A Float", argument.name))
-		}
-	})
-
-	return argument
-}
-
-func NewFloatFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomArgument(name, func(argument argumentView, value any) any {
 		switch v := value.(type) {
 		case nil, float64:
 			return v
@@ -49,74 +24,46 @@ func NewFloatFlag(name string) *Flag {
 				return float
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
+			panic(
+				NewUsageError(InvalidFloat, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid float argument detected.",
+					).
+					WithExpected(
+						"Expected a valid float value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid float value.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
+			panic(
+				NewUsageError(InvalidFloat, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid float argument detected.",
+					).
+					WithExpected(
+						"Expected a valid float value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid float value.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewFloatListArgument(name string) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	argument.HandleConvert(func(value any) any {
-		switch v := value.(type) {
-		case nil, []float64:
-			return v
-
-		case []int:
-			result := make([]float64, 0)
-
-			for i := range v {
-				raw := fmt.Sprintf("%v", v[i])
-
-				value, err := strconv.ParseFloat(raw, 64)
-
-				if err != nil {
-					panic(fmt.Sprintf("Argument '%s' Must Be A List Of Floats", argument.name))
-				}
-
-				result = append(result, value)
-			}
-
-			return result
-
-		case []string:
-			result := make([]float64, 0)
-
-			for i := range v {
-				value, err := strconv.ParseFloat(v[i], 64)
-
-				if err != nil {
-					panic(fmt.Sprintf("Argument '%s' Must Be A List Of Floats", argument.name))
-				}
-
-				result = append(result, value)
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be A List Of Floats", argument.name))
-		}
-	})
-
-	argument.variadic = true
-
-	return argument
-}
-
-func NewFloatListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListArgument(name, func(argument argumentView, value any) any {
 		switch v := value.(type) {
 		case nil, []float64:
 			return v
@@ -128,7 +75,22 @@ func NewFloatListFlag(name string) *Flag {
 				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
 
 				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithArgument(argument).
+							WithMessage(
+								"Invalid float list argument detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %v", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
 				}
 
 				floats = append(floats, float)
@@ -143,7 +105,22 @@ func NewFloatListFlag(name string) *Flag {
 				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
 
 				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithArgument(argument).
+							WithMessage(
+								"Invalid float list argument detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %v", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
 				}
 
 				floats = append(floats, float)
@@ -158,7 +135,22 @@ func NewFloatListFlag(name string) *Flag {
 				float, err := strconv.ParseFloat(v[i], 64)
 
 				if err != nil {
-					panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithArgument(argument).
+							WithMessage(
+								"Invalid float list argument detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
 				}
 
 				floats = append(floats, float)
@@ -167,77 +159,28 @@ func NewFloatListFlag(name string) *Flag {
 			return floats
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Floats", flag.name))
+			panic(
+				NewUsageError(InvalidFloatList, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Invalid float list argument detected.",
+					).
+					WithExpected(
+						"Expected a list of valid float values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of float values.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewFloatEnumArgument(name string, enum []float64) *Argument {
-	argument := NewCustomArgument(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Argument '%s' Must Have At Least 1 Option", argument.name))
-	}
-
-	for i := range enum {
-		argument.enum = append(argument.enum, enum[i])
-	}
-
-	argument.HandleConvert(func(value any) any {
-		if value == nil {
-			return nil
-		}
-
-		enum := make([]string, 0)
-
-		for i := range argument.enum {
-			enum = append(enum, fmt.Sprintf("%v", argument.enum[i]))
-		}
-
-		switch v := value.(type) {
-		case int, float64, string:
-			raw := fmt.Sprintf("%v", v)
-
-			result, err := strconv.ParseFloat(raw, 64)
-
-			if err != nil {
-				panic(fmt.Sprintf("Argument '%s' Must Be A Float", argument.name))
-			}
-
-			if !slices.Contains(enum, raw) {
-				panic(fmt.Sprintf("Argument '%s' Must Be One Of %s", argument.name, strings.Join(enum, ", ")))
-			}
-
-			return result
-
-		default:
-			panic(fmt.Sprintf("Argument '%s' Must Be One Of %s", argument.name, strings.Join(enum, ", ")))
-		}
-	})
-
-	return argument
-}
-
-func NewFloatEnumFlag(name string, enum []float64) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		flag.enum = append(flag.enum, enum[i])
-	}
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomEnumArgument(name, enum, func(argument argumentView, value any) any {
 		if value == nil {
 			return nil
 		}
@@ -255,19 +198,307 @@ func NewFloatEnumFlag(name string, enum []float64) *Flag {
 			float, err := strconv.ParseFloat(raw, 64)
 
 			if err != nil {
-				panic(fmt.Sprintf("Flag '%s' Must Be A Float", flag.name))
+				panic(
+					NewUsageError(InvalidFloatOption, nil).
+						WithArgument(argument).
+						WithMessage(
+							"Invalid float enum argument detected.",
+						).
+						WithExpected(
+							"Expected a valid float value.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", raw),
+						).
+						WithSuggestion(
+							"Provide a valid float value.",
+						),
+				)
 			}
 
 			if slices.Contains(options, raw) {
 				return float
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidFloatOption, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Unsupported float enum argument detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %f", float),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum float values.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidFloatOption, nil).
+					WithArgument(argument).
+					WithMessage(
+						"Unsupported float enum argument detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Argument '%s' must receive one of: %s", argument.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum float values.",
+					),
+			)
 		}
 	})
+}
 
-	return flag
+func NewFloatFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
+		switch v := value.(type) {
+		case nil, float64:
+			return v
+
+		case int, float32, string:
+			if float, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64); err == nil {
+				return float
+			}
+
+			panic(
+				NewUsageError(InvalidFloat, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid float flag detected.",
+					).
+					WithExpected(
+						"Expected a valid float value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid float value.",
+					),
+			)
+
+		default:
+			panic(
+				NewUsageError(InvalidFloat, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid float flag detected.",
+					).
+					WithExpected(
+						"Expected a valid float value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid float value.",
+					),
+			)
+		}
+	})
+}
+
+func NewFloatListFlag(name string) *Flag {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
+		switch v := value.(type) {
+		case nil, []float64:
+			return v
+
+		case []int:
+			floats := make([]float64, 0)
+
+			for i := range v {
+				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
+
+				if err != nil {
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid float list flag detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %v", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
+				}
+
+				floats = append(floats, float)
+			}
+
+			return floats
+
+		case []float32:
+			floats := make([]float64, 0)
+
+			for i := range v {
+				float, err := strconv.ParseFloat(fmt.Sprintf("%v", v[i]), 64)
+
+				if err != nil {
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid float list flag detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %v", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
+				}
+
+				floats = append(floats, float)
+			}
+
+			return floats
+
+		case []string:
+			floats := make([]float64, 0)
+
+			for i := range v {
+				float, err := strconv.ParseFloat(v[i], 64)
+
+				if err != nil {
+					panic(
+						NewUsageError(InvalidFloatList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid float list flag detected.",
+							).
+							WithExpected(
+								"Expected a list of valid float values.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid float value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide a valid list of float values.",
+							),
+					)
+				}
+
+				floats = append(floats, float)
+			}
+
+			return floats
+
+		default:
+			panic(
+				NewUsageError(InvalidFloatList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid float list flag detected.",
+					).
+					WithExpected(
+						"Expected a list of valid float values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of float values.",
+					),
+			)
+		}
+	})
+}
+
+func NewFloatEnumFlag(name string, enum []float64) *Flag {
+	return NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
+		if value == nil {
+			return nil
+		}
+
+		options := make([]string, 0)
+
+		for i := range enum {
+			options = append(options, fmt.Sprintf("%v", enum[i]))
+		}
+
+		switch v := value.(type) {
+		case int, float32, float64, string:
+			raw := fmt.Sprintf("%v", v)
+
+			float, err := strconv.ParseFloat(raw, 64)
+
+			if err != nil {
+				panic(
+					NewUsageError(InvalidFloatOption, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid float enum flag detected.",
+						).
+						WithExpected(
+							"Expected a valid float value.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", raw),
+						).
+						WithSuggestion(
+							"Provide a valid float value.",
+						),
+				)
+			}
+
+			if slices.Contains(options, raw) {
+				return float
+			}
+
+			panic(
+				NewUsageError(InvalidFloatOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported float enum flag detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %f", float),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum float values.",
+					),
+			)
+
+		default:
+			panic(
+				NewUsageError(InvalidFloatOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported float enum flag detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum float values.",
+					),
+			)
+		}
+	})
 }

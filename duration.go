@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
-func NewDurationFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	InvalidDuration       ErrorCode = "INVALID_DURATION"
+	InvalidDurationList   ErrorCode = "INVALID_DURATION_LIST"
+	InvalidDurationOption ErrorCode = "INVALID_DURATION_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewDurationFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, time.Duration:
 			return v
@@ -22,22 +24,46 @@ func NewDurationFlag(name string) *Flag {
 				return duration
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
+			panic(
+				NewUsageError(InvalidDuration, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid duration value detected.",
+					).
+					WithExpected(
+						"Expected a valid duration value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Use a valid duration format such as '1h', '30m', or '15s'.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Duration", flag.name))
+			panic(
+				NewUsageError(InvalidDuration, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid duration value detected.",
+					).
+					WithExpected(
+						"Expected a valid duration value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Use a valid duration value.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewDurationListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, []time.Duration:
 			return v
@@ -49,7 +75,22 @@ func NewDurationListFlag(name string) *Flag {
 				duration, err := time.ParseDuration(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("'%s' Not A Valid Duration", v[i]))
+					panic(
+						NewUsageError(InvalidDurationList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid duration value detected.",
+							).
+							WithExpected(
+								"Expected a valid duration value within the duration list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid duration value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Use valid duration formats such as '1h', '30m', or '15s'.",
+							),
+					)
 				}
 
 				durations = append(durations, duration)
@@ -58,43 +99,38 @@ func NewDurationListFlag(name string) *Flag {
 			return durations
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Durations", flag.name))
+			panic(
+				NewUsageError(InvalidDurationList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid duration list detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive a list of valid duration values.", flag.Name()),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of duration values.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewDurationEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		duration, err := time.ParseDuration(enum[i])
-
-		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
-		}
-
-		flag.enum = append(flag.enum, duration)
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(time.Duration).String())
+		for i := range enum {
+			options = append(options, enum[i].(time.Duration).String())
 		}
 
 		switch v := value.(type) {
@@ -103,25 +139,111 @@ func NewDurationEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidDurationOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported duration value detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum duration values.",
+					),
+			)
 
 		case string:
 			duration, err := time.ParseDuration(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("'%s' Not A Valid Duration", v))
+				panic(
+					NewUsageError(InvalidDuration, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid duration value detected.",
+						).
+						WithExpected(
+							"Expected a valid duration value.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Use a valid duration format such as '1h', '30m', or '15s'.",
+						),
+				)
 			}
 
 			if slices.Contains(options, duration.String()) {
 				return duration
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidDurationOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported duration value detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", duration.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum duration values.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidDurationOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported duration value detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum duration values.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		duration, err := time.ParseDuration(enum[i])
+
+		if err != nil {
+			NewDefinitionError(InvalidDurationOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid duration enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid duration values.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Use valid duration formats such as '1h', '30m', or '15s'.",
+				).
+				Fatal()
+		}
+
+		flag.enum = append(flag.enum, duration)
+	}
 
 	return flag
 }

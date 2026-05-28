@@ -8,9 +8,16 @@ import (
 	"strings"
 )
 
-var (
-	memoryRegexp = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)([A-Za-z]+)$`)
+const (
+	InvalidMemory         ErrorCode = "INVALID_MEMORY"
+	InvalidMemoryList     ErrorCode = "INVALID_MEMORY_LIST"
+	InvalidMemoryUnit     ErrorCode = "INVALID_MEMORY_UNIT"
+	InvalidMemoryOption   ErrorCode = "INVALID_MEMORY_OPTION"
+	InvalidMemoryQuantity ErrorCode = "INVALID_MEMORY_QUANTITY"
+)
 
+var (
+	memoryRegexp  = regexp.MustCompile(`^([0-9]+(?:\.[0-9]+)?)([A-Za-z]+)$`)
 	unitsToMemory = map[string]int64{
 		"B":   1,
 		"KB":  1000,
@@ -27,11 +34,7 @@ var (
 )
 
 func NewMemoryFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -40,19 +43,28 @@ func NewMemoryFlag(name string) *Flag {
 			return mustConvMemory(v)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Unit Of Memory", flag.name))
+			panic(
+				NewUsageError(InvalidMemory, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid memory value detected.",
+					).
+					WithExpected(
+						"Expected a valid memory size value.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid memory value such as '512MB', '2GiB', or '1TB'.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewMemoryListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -67,37 +79,38 @@ func NewMemoryListFlag(name string) *Flag {
 			return memories
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Memory Units", flag.name))
+			panic(
+				NewUsageError(InvalidMemoryList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid memory list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid memory size values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide valid memory values such as '512MB', '2GiB', or '1TB'.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewMemoryEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		flag.enum = append(flag.enum, mustConvMemory(enum[i]))
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, fmt.Sprintf("%v", flag.enum[i].(float64)))
+		for i := range enum {
+			options = append(options, fmt.Sprintf("%v", enum[i].(float64)))
 		}
 
 		switch v := value.(type) {
@@ -106,12 +119,48 @@ func NewMemoryEnumFlag(name string, enum []string) *Flag {
 				return memory
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidMemoryOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported memory value detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum memory values.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidMemoryOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported memory value detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum memory values.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		flag.enum = append(flag.enum, mustConvMemory(enum[i]))
+	}
 
 	return flag
 }
@@ -120,7 +169,20 @@ func mustConvMemory(value string) float64 {
 	matches := memoryRegexp.FindStringSubmatch(value)
 
 	if len(matches) == 0 {
-		panic(fmt.Sprintf("'%s' Not A Valid Size", value))
+		NewUsageError(InvalidMemory, nil).
+			WithMessage(
+				"Invalid memory value detected.",
+			).
+			WithExpected(
+				"Expected a valid memory size value.",
+			).
+			WithReceived(
+				fmt.Sprintf("Received value: %s", value),
+			).
+			WithSuggestion(
+				"Use valid memory formats such as '512MB', '2GiB', or '1TB'.",
+			).
+			Fatal()
 	}
 
 	quant := matches[1]
@@ -129,12 +191,40 @@ func mustConvMemory(value string) float64 {
 	multiplier, ok := unitsToMemory[units]
 
 	if !ok {
-		panic(fmt.Sprintf("'%s' Not A Valid Unit Of Memory", units))
+		NewUsageError(InvalidMemoryUnit, nil).
+			WithMessage(
+				"Invalid memory unit detected.",
+			).
+			WithExpected(
+				"Expected a supported memory unit.",
+			).
+			WithReceived(
+				fmt.Sprintf("Received unit: %s", units),
+			).
+			WithSuggestion(
+				"Use supported units such as B, KB, MB, GB, TB, KiB, MiB, or GiB.",
+			).
+			Fatal()
 	}
 
 	if result, err := strconv.ParseFloat(quant, 64); err == nil {
 		return result * float64(multiplier)
 	}
 
-	panic(fmt.Sprintf("'%s' Not A Valid Number", quant))
+	NewUsageError(InvalidMemoryQuantity, nil).
+		WithMessage(
+			"Invalid memory quantity detected.",
+		).
+		WithExpected(
+			"Expected a valid numeric memory quantity.",
+		).
+		WithReceived(
+			fmt.Sprintf("Received quantity: %s", quant),
+		).
+		WithSuggestion(
+			"Provide a valid numeric memory quantity such as '512', '1.5', or '2048'.",
+		).
+		Fatal()
+
+	return 0
 }

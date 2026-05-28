@@ -7,16 +7,12 @@ import (
 )
 
 var (
-	argNameRegexp = regexp.MustCompile(`^[a-zA-Z]+$`)
-	flgNameRegexp = regexp.MustCompile(`^(?:--)?([a-zA-Z]+)$`)
+	argumentNameRegexp = regexp.MustCompile(`^[a-z][a-z0-9]*$`)
+	flagNameRegexp     = regexp.MustCompile(`^(?:--)?([a-z][a-z0-9]*(?:[-_][a-z0-9]+)*)$`)
 )
 
-func NewCustomArgument(name string, handleConvert func(value any) any) *Argument {
-	name = MustParseArgumentName(name)
-
-	if handleConvert == nil {
-		panic(fmt.Sprintf("Argument '%s' Must Have A Type Handler", name))
-	}
+func NewCustomArgument(name string, convert func(argument argumentView, value any) any) *Argument {
+	name = mustParseArgumentName(name)
 
 	return &Argument{
 		name:        name,
@@ -24,19 +20,33 @@ func NewCustomArgument(name string, handleConvert func(value any) any) *Argument
 		description: "",
 		required:    true,
 		variadic:    false,
+		enumerable:  false,
 		value:       nil,
 		enum:        nil,
-		covert:      handleConvert,
+		convert:     convert,
 		validate:    nil,
 	}
 }
 
-func NewCustomFlag(name string, handleConvert func(value any) any) *Flag {
-	name = MustParseFlagName(name)
+func NewCustomListArgument(name string, convert func(argument argumentView, value any) any) *Argument {
+	argument := NewCustomArgument(name, convert)
+	argument.variadic = true
+	return argument
+}
 
-	if handleConvert == nil {
-		panic(fmt.Sprintf("Flag '%s' Must Have A Type Handler", name))
+func NewCustomEnumArgument[E any](name string, enum []E, convert func(argument argumentView, value any) any) *Argument {
+	argument := NewCustomArgument(name, convert)
+
+	for i := range enum {
+		argument.enum = append(argument.enum, enum[i])
 	}
+
+	argument.enumerable = true
+	return argument
+}
+
+func NewCustomFlag(name string, convert func(flag flagView, value any) any) *Flag {
+	name = mustParseFlagName(name)
 
 	return &Flag{
 		name:        name,
@@ -44,29 +54,77 @@ func NewCustomFlag(name string, handleConvert func(value any) any) *Flag {
 		description: "",
 		required:    false,
 		variadic:    false,
+		enumerable:  false,
 		value:       nil,
 		enum:        nil,
-		covert:      handleConvert,
+		convert:     convert,
 		validate:    nil,
 	}
 }
 
-func MustParseArgumentName(name string) string {
+func NewCustomListFlag(name string, convert func(flag flagView, value any) any) *Flag {
+	flag := NewCustomFlag(name, convert)
+	flag.variadic = true
+	return flag
+}
+
+func NewCustomEnumFlag[E any](name string, enum []E, convert func(flag flagView, value any) any) *Flag {
+	flag := NewCustomFlag(name, convert)
+
+	for i := range enum {
+		flag.enum = append(flag.enum, enum[i])
+	}
+
+	flag.enumerable = true
+	return flag
+}
+
+func mustParseArgumentName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 
-	if argNameRegexp.MatchString(name) {
+	if argumentNameRegexp.MatchString(name) {
 		return name
 	}
 
-	panic(fmt.Sprintf("Invalid Argument Name: '%s'", name))
+	NewDefinitionError(ArgumentNameInvalid, nil).
+		WithMessage(
+			"Invalid argument name format detected.",
+		).
+		WithExpected(
+			"Argument names must begin with a lowercase letter and may only contain lowercase letters and numbers.",
+		).
+		WithReceived(
+			fmt.Sprintf("Received argument name: %s", name),
+		).
+		WithSuggestion(
+			"Use a valid argument name such as 'path', 'target', or 'build1'.",
+		).
+		Fatal()
+
+	return ""
 }
 
-func MustParseFlagName(name string) string {
+func mustParseFlagName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 
-	if matches := flgNameRegexp.FindStringSubmatch(name); len(matches) != 0 {
+	if matches := flagNameRegexp.FindStringSubmatch(name); len(matches) != 0 {
 		return "--" + matches[1]
 	}
 
-	panic(fmt.Sprintf("Invalid Flag Name: '%s'", name))
+	NewDefinitionError(FlagNameInvalid, nil).
+		WithMessage(
+			"Invalid flag name format detected.",
+		).
+		WithExpected(
+			"Flag names must optionally begin with '--', start with a lowercase letter, and may contain lowercase letters, numbers, hyphens, or underscores.",
+		).
+		WithReceived(
+			fmt.Sprintf("Invalid flag name: %s", name),
+		).
+		WithSuggestion(
+			"Use a valid flag name such as '--verbose', '--output-dir', or '--cache_size'.",
+		).
+		Fatal()
+
+	return ""
 }

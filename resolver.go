@@ -7,7 +7,7 @@ import (
 )
 
 func mustResolveCommand(commands []*Command) (*Command, []string, []string) {
-	pathToCommand := mustValidateCommands(commands)
+	mustValidateCommands(commands)
 
 	params := os.Args[1:]
 
@@ -26,6 +26,8 @@ func mustResolveCommand(commands []*Command) (*Command, []string, []string) {
 		)
 	}
 
+	pathToCommand := commandsByPath(commands)
+
 	for i := len(params); i > 0; i-- {
 		path := strings.Join(params[0:i], " ")
 
@@ -36,7 +38,7 @@ func mustResolveCommand(commands []*Command) (*Command, []string, []string) {
 	}
 
 	panic(
-		NewUsageError(UnknownCommand, nil).
+		NewUsageError(CommandUnknown, nil).
 			WithMessage(
 				"Unknown command.",
 			).
@@ -60,7 +62,7 @@ func mustResolveArguments(command *Command, params []string) map[string]any {
 		}
 
 		panic(
-			NewUsageError(MissingRequiredCommandArguments, nil).
+			NewUsageError(MissingRequiredArguments, nil).
 				WithCommand(command).
 				WithMessage(
 					"Required arguments are missing.",
@@ -79,7 +81,7 @@ func mustResolveArguments(command *Command, params []string) map[string]any {
 
 	if variadic == nil && len(params) > len(required)+len(optional) {
 		panic(
-			NewUsageError(TooManyCommandArguments, nil).
+			NewUsageError(TooManyArguments, nil).
 				WithCommand(command).
 				WithMessage(
 					"Too many arguments were provided.",
@@ -101,31 +103,31 @@ func mustResolveArguments(command *Command, params []string) map[string]any {
 	arguments := make(map[string]any)
 
 	for i := range required {
-		arguments[required[i].name] = required[i].setValue(params[index]).getValue()
+		arguments[required[i].name] = required[i].mustSetValue(params[index]).mustGetValue()
 		index++
 	}
 
 	for i := range optional {
 		if index < len(params) {
-			optional[i].setValue(params[index])
+			optional[i].mustSetValue(params[index])
 			index++
 		}
 
-		if value := optional[i].getValue(); value != nil {
+		if value := optional[i].mustGetValue(); value != nil {
 			arguments[optional[i].name] = value
 		}
 	}
 
 	if variadic != nil {
 		if index < len(params) {
-			arguments[variadic.name] = variadic.setValue(params[index:]).getValue()
+			arguments[variadic.name] = variadic.mustSetValue(params[index:]).mustGetValue()
 			return arguments
 		}
 
 		if len(optional) == 0 {
 			if variadic.required {
 				panic(
-					NewUsageError(MissingRequiredCommandArguments, nil).
+					NewUsageError(MissingRequiredArguments, nil).
 						WithCommand(command).
 						WithMessage(
 							"Required arguments are missing.",
@@ -139,7 +141,7 @@ func mustResolveArguments(command *Command, params []string) map[string]any {
 				)
 			}
 
-			if value := variadic.getValue(); value != nil {
+			if value := variadic.mustGetValue(); value != nil {
 				arguments[variadic.name] = value
 				return arguments
 			}
@@ -162,7 +164,7 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 		}
 
 		panic(
-			NewUsageError(MissingRequiredCommandFlags, nil).
+			NewUsageError(MissingRequiredFlags, nil).
 				WithCommand(command).
 				WithMessage(
 					"Required flags are missing.",
@@ -181,7 +183,7 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 
 	if len(flagToValues) > len(required)+len(optional) {
 		panic(
-			NewUsageError(TooManyCommandFlags, nil).
+			NewUsageError(TooManyFlags, nil).
 				WithCommand(command).
 				WithMessage(
 					"Too many flags were provided.",
@@ -207,7 +209,7 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 
 		if len(values) == 0 {
 			panic(
-				NewUsageError(MissingRequiredCommandFlags, nil).
+				NewUsageError(MissingRequiredFlags, nil).
 					WithFlag(flag).
 					WithCommand(command).
 					WithMessage(
@@ -223,13 +225,13 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 		}
 
 		if flag.variadic {
-			flags[flag.name] = flag.setValue(values).getValue()
+			flags[flag.name] = flag.mustSetValue(values).mustGetValue()
 			continue
 		}
 
 		if len(values) > 1 {
 			panic(
-				NewUsageError(TooManyCommandFlagValues, nil).
+				NewUsageError(TooManyFlagValues, nil).
 					WithFlag(flag).
 					WithCommand(command).
 					WithMessage(
@@ -247,7 +249,7 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 			)
 		}
 
-		flags[flag.name] = flag.setValue(values[0]).getValue()
+		flags[flag.name] = flag.mustSetValue(values[0]).mustGetValue()
 	}
 
 	for i := range optional {
@@ -256,7 +258,7 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 		values := flagToValues[flag.name]
 
 		if len(values) == 0 {
-			if value := flag.getValue(); value != nil {
+			if value := flag.mustGetValue(); value != nil {
 				flags[flag.name] = value
 			}
 
@@ -264,13 +266,13 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 		}
 
 		if flag.variadic {
-			flags[flag.name] = flag.setValue(values).getValue()
+			flags[flag.name] = flag.mustSetValue(values).mustGetValue()
 			continue
 		}
 
 		if len(values) > 1 {
 			panic(
-				NewUsageError(TooManyCommandFlagValues, nil).
+				NewUsageError(TooManyFlagValues, nil).
 					WithFlag(flag).
 					WithCommand(command).
 					WithMessage(
@@ -288,42 +290,10 @@ func mustResolveFlags(command *Command, params []string) map[string]any {
 			)
 		}
 
-		flags[flag.name] = flag.setValue(values[0]).getValue()
+		flags[flag.name] = flag.mustSetValue(values[0]).mustGetValue()
 	}
 
 	return flags
-}
-
-func mustValidateCommands(commands []*Command) map[string]*Command {
-	pathToCommand := make(map[string]*Command)
-
-	for i := range commands {
-		path := strings.Join(commands[i].path, " ")
-
-		if pathToCommand[path] != nil {
-			panic(
-				NewDefinitionError(DuplicateCommandRoute, nil).
-					WithMessage(
-						"Duplicate command paths detected.",
-					).
-					WithExpected(
-						"Each command must resolve to a unique command path.",
-					).
-					WithReceived(
-						fmt.Sprintf("Duplicate command path: %s", path),
-					).
-					WithSuggestion(
-						"Ensure no two commands resolve to the same command path.",
-					),
-			)
-		}
-
-		commands[i].mustValidate()
-
-		pathToCommand[path] = commands[i]
-	}
-
-	return pathToCommand
 }
 
 func mustPartitionCommandParams(params []string) ([]string, []string) {
@@ -346,7 +316,7 @@ func mustGroupFlagParams(params []string) map[string][]string {
 
 		if !strings.HasPrefix(name, "-") {
 			panic(
-				NewUsageError(InvalidFlag, nil).
+				NewUsageError(FlagInvalid, nil).
 					WithMessage(
 						"An invalid flag was provided.",
 					).
@@ -361,7 +331,7 @@ func mustGroupFlagParams(params []string) map[string][]string {
 
 		if parted := strings.Split(name, "="); len(parted) > 2 {
 			panic(
-				NewUsageError(InvalidFlagFormat, nil).
+				NewUsageError(FlagFormatInvalid, nil).
 					WithMessage(
 						"Invalid flag format detected.",
 					).
@@ -392,4 +362,15 @@ func mustGroupFlagParams(params []string) map[string][]string {
 	}
 
 	return flagToValues
+}
+
+func commandsByPath(commands []*Command) map[string]*Command {
+	pathToCommand := make(map[string]*Command)
+
+	for i := range commands {
+		path := commands[i].getPath()
+		pathToCommand[path] = commands[i]
+	}
+
+	return pathToCommand
 }

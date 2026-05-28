@@ -7,12 +7,14 @@ import (
 	"strings"
 )
 
-func NewIPNetFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	InvalidIPNet       ErrorCode = "INVALID_IP_NET"
+	InvalidIPNetList   ErrorCode = "INVALID_IP_NET_LIST"
+	InvalidIPNetOption ErrorCode = "INVALID_IP_NET_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewIPNetFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, *net.IPNet:
 			return v
@@ -25,22 +27,46 @@ func NewIPNetFlag(name string) *Flag {
 				return net
 			}
 
-			panic(fmt.Sprintf("'%s' Not A Valid CIDR / Network Range", v))
+			panic(
+				NewUsageError(InvalidIPNet, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid CIDR or network range detected.",
+					).
+					WithExpected(
+						"Expected a valid CIDR or network range.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid CIDR such as '192.168.1.0/24' or '10.0.0.0/8'.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A CIDR / Network Range", flag.name))
+			panic(
+				NewUsageError(InvalidIPNet, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid CIDR or network range detected.",
+					).
+					WithExpected(
+						"Expected a valid CIDR or network range.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid CIDR or network range.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewIPNetListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, []*net.IPNet:
 			return v
@@ -61,7 +87,22 @@ func NewIPNetListFlag(name string) *Flag {
 				_, net, err := net.ParseCIDR(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("'%s' Not A Valid CIDR / Network Range", v[i]))
+					panic(
+						NewUsageError(InvalidIPNetList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid CIDR or network range detected.",
+							).
+							WithExpected(
+								"Expected a valid CIDR or network range within the network range list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid network range: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid CIDR values such as '192.168.1.0/24'.",
+							),
+					)
 				}
 
 				nets = append(nets, net)
@@ -70,43 +111,38 @@ func NewIPNetListFlag(name string) *Flag {
 			return nets
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of CIDRs / Network Ranges", flag.name))
+			panic(
+				NewUsageError(InvalidIPNetList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid network range list detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive a list of valid CIDR or network range values.", flag.Name()),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of CIDR or network range values.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewIPNetEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		_, net, err := net.ParseCIDR(enum[i])
-
-		if err != nil {
-			panic(fmt.Sprintf("'%s' Not A Valid CIDR / Network Range", enum[i]))
-		}
-
-		flag.enum = append(flag.enum, net)
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(*net.IPNet).String())
+		for i := range enum {
+			options = append(options, enum[i].(*net.IPNet).String())
 		}
 
 		switch v := value.(type) {
@@ -115,32 +151,134 @@ func NewIPNetEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPNetOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported CIDR or network range detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ranges.",
+					),
+			)
 
 		case net.IPNet:
 			if slices.Contains(options, v.String()) {
 				return &v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPNetOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported CIDR or network range detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ranges.",
+					),
+			)
 
 		case string:
 			_, net, err := net.ParseCIDR(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("'%s' Not A Valid CIDR / Network Range", v))
+				panic(
+					NewUsageError(InvalidIPNet, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid CIDR or network range detected.",
+						).
+						WithExpected(
+							"Expected a valid CIDR or network range.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Provide a valid CIDR such as '192.168.1.0/24'.",
+						),
+				)
 			}
 
 			if slices.Contains(options, net.String()) {
 				return net
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPNetOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported CIDR or network range detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", net.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ranges.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPNetOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported CIDR or network range detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ranges.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		_, net, err := net.ParseCIDR(enum[i])
+
+		if err != nil {
+			NewDefinitionError(InvalidIPNetOption, nil).
+				WithFlag(flag).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid CIDR enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid CIDR or network range values.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid CIDR values such as '192.168.1.0/24'.",
+				).
+				Fatal()
+		}
+
+		flag.enum = append(flag.enum, net)
+	}
 
 	return flag
 }

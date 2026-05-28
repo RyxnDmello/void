@@ -7,12 +7,14 @@ import (
 	"strings"
 )
 
-func NewIPFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	InvalidIP       ErrorCode = "INVALID_IP"
+	InvalidIPList   ErrorCode = "INVALID_IP_LIST"
+	InvalidIPOption ErrorCode = "INVALID_IP_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewIPFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, net.IP:
 			return v
@@ -22,22 +24,46 @@ func NewIPFlag(name string) *Flag {
 				return ip
 			}
 
-			panic(fmt.Sprintf("'%s' Not A Valid IPv4 or IPv6 Address", v))
+			panic(
+				NewUsageError(InvalidIP, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid IP address detected.",
+					).
+					WithExpected(
+						"Expected a valid IPv4 or IPv6 address.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid IPv4 or IPv6 address.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be Either An IPv4 or IPv6 Address", flag.name))
+			panic(
+				NewUsageError(InvalidIP, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid IP address detected.",
+					).
+					WithExpected(
+						"Expected a valid IPv4 or IPv6 address.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid IPv4 or IPv6 address.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewIPListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, []net.IP:
 			return v
@@ -49,7 +75,22 @@ func NewIPListFlag(name string) *Flag {
 				ip := net.ParseIP(v[i])
 
 				if ip == nil {
-					panic(fmt.Sprintf("'%s' Not A Valid IPv4 or IPv6 Address", v[i]))
+					panic(
+						NewUsageError(InvalidIPList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid IP address detected.",
+							).
+							WithExpected(
+								"Expected a valid IPv4 or IPv6 address within the IP address list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid IP address: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid IPv4 or IPv6 addresses.",
+							),
+					)
 				}
 
 				ips = append(ips, ip)
@@ -58,43 +99,38 @@ func NewIPListFlag(name string) *Flag {
 			return ips
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of IPv4 or IPv6 Addresses", flag.name))
+			panic(
+				NewUsageError(InvalidIPList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid IP address list detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive a list of valid IPv4 or IPv6 addresses.", flag.Name()),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of IPv4 or IPv6 addresses.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewIPEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		ip := net.ParseIP(enum[i])
-
-		if ip == nil {
-			panic(fmt.Sprintf("'%s' Not A Valid IPv4 or IPv6 Address", enum[i]))
-		}
-
-		flag.enum = append(flag.enum, ip)
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(net.IP).String())
+		for i := range enum {
+			options = append(options, enum[i].(net.IP).String())
 		}
 
 		switch v := value.(type) {
@@ -103,25 +139,111 @@ func NewIPEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported IP address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum IP addresses.",
+					),
+			)
 
 		case string:
 			ip := net.ParseIP(v)
 
 			if ip == nil {
-				panic(fmt.Sprintf("'%s' Not A Valid IPv4 or IPv6 Address", v))
+				panic(
+					NewUsageError(InvalidIP, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid IP address detected.",
+						).
+						WithExpected(
+							"Expected a valid IPv4 or IPv6 address.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Provide a valid IPv4 or IPv6 address.",
+						),
+				)
 			}
 
 			if slices.Contains(options, ip.String()) {
 				return ip
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported IP address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", ip.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum IP addresses.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidIPOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported IP address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum IP addresses.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		ip := net.ParseIP(enum[i])
+
+		if ip == nil {
+			NewDefinitionError(InvalidIPOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid IP enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid IPv4 or IPv6 addresses.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid IPv4 or IPv6 addresses.",
+				).
+				Fatal()
+		}
+
+		flag.enum = append(flag.enum, ip)
+	}
 
 	return flag
 }

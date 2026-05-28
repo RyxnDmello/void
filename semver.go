@@ -7,17 +7,20 @@ import (
 	"strings"
 )
 
+const (
+	InvalidSemver       ErrorCode = "INVALID_SEMVER"
+	InvalidSemverTag    ErrorCode = "INVALID_SEMVER_TAG"
+	InvalidSemverList   ErrorCode = "INVALID_SEMVER_LIST"
+	InvalidSemverOption ErrorCode = "INVALID_SEMVER_OPTION"
+)
+
 var (
 	versionRegexp = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)$`)
 	releaseRegexp = regexp.MustCompile(`^[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*$`)
 )
 
 func NewSemverFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -26,19 +29,28 @@ func NewSemverFlag(name string) *Flag {
 			return mustParseSemver(v)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Version", flag.name))
+			panic(
+				NewUsageError(InvalidSemver, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid semantic version detected.",
+					).
+					WithExpected(
+						"Expected a valid semantic version.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid semantic version such as '1.0.0' or 'v1.2.3-beta'.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewSemverListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -53,37 +65,38 @@ func NewSemverListFlag(name string) *Flag {
 			return versions
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Versions", flag.name))
+			panic(
+				NewUsageError(InvalidSemverList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid semantic version list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid semantic versions.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide valid semantic versions such as '1.0.0' or 'v1.2.3-beta'.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewSemverEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		flag.enum = append(flag.enum, mustParseSemver(enum[i]))
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(string))
+		for i := range enum {
+			options = append(options, enum[i].(string))
 		}
 
 		switch v := value.(type) {
@@ -94,12 +107,48 @@ func NewSemverEnumFlag(name string, enum []string) *Flag {
 				return version
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidSemverOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported semantic version detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", version),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum semantic versions.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidSemverOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported semantic version detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum semantic versions.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		flag.enum = append(flag.enum, mustParseSemver(enum[i]))
+	}
 
 	return flag
 }
@@ -112,14 +161,40 @@ func mustParseSemver(value string) string {
 	semver := sections[0]
 
 	if !versionRegexp.MatchString(semver) {
-		panic(fmt.Sprintf("'%s' Not A Valid Semver Version", semver))
+		NewUsageError(InvalidSemver, nil).
+			WithMessage(
+				"Invalid semantic version detected.",
+			).
+			WithExpected(
+				"Expected a valid semantic version in the format 'MAJOR.MINOR.PATCH'.",
+			).
+			WithReceived(
+				fmt.Sprintf("Received version: %s", semver),
+			).
+			WithSuggestion(
+				"Provide a valid semantic version such as '1.0.0' or 'v1.2.3'.",
+			).
+			Fatal()
 	}
 
 	if len(sections) > 1 {
 		release := sections[1]
 
 		if !releaseRegexp.MatchString(release) {
-			panic(fmt.Sprintf("'-%s' Not A Valid Release Tag In '%s'", release, semver))
+			NewUsageError(InvalidSemverTag, nil).
+				WithMessage(
+					"Invalid semantic version release tag detected.",
+				).
+				WithExpected(
+					"Expected a valid semantic version release tag.",
+				).
+				WithReceived(
+					fmt.Sprintf("Received release tag: %s", release),
+				).
+				WithSuggestion(
+					"Use release tags containing only alphanumeric characters, dots, or hyphens.",
+				).
+				Fatal()
 		}
 	}
 

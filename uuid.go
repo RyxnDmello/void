@@ -7,14 +7,16 @@ import (
 	"strings"
 )
 
+const (
+	InvalidUUID       ErrorCode = "INVALID_UUID"
+	InvalidUUIDList   ErrorCode = "INVALID_UUID_LIST"
+	InvalidUUIDOption ErrorCode = "INVALID_UUID_OPTION"
+)
+
 var uuidRegexp = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
 
 func NewUUIDFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -24,22 +26,46 @@ func NewUUIDFlag(name string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("'%s' Not A Valid UUID", v))
+			panic(
+				NewUsageError(InvalidUUID, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid UUID detected.",
+					).
+					WithExpected(
+						"Expected a valid UUID.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid UUID such as '550e8400-e29b-41d4-a716-446655440000'.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A UUID", flag.name))
+			panic(
+				NewUsageError(InvalidUUID, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid UUID detected.",
+					).
+					WithExpected(
+						"Expected a valid UUID.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid UUID value.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewUUIDListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -49,7 +75,22 @@ func NewUUIDListFlag(name string) *Flag {
 
 			for i := range v {
 				if !uuidRegexp.MatchString(v[i]) {
-					panic(fmt.Sprintf("'%s' Not A Valid UUID", v[i]))
+					panic(
+						NewUsageError(InvalidUUIDList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid UUID detected.",
+							).
+							WithExpected(
+								"Expected a valid UUID within the UUID list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid UUID: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid UUID values.",
+							),
+					)
 				}
 
 				uuids = append(uuids, v[i])
@@ -58,33 +99,28 @@ func NewUUIDListFlag(name string) *Flag {
 			return uuids
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of UUIDs", flag.name))
+			panic(
+				NewUsageError(InvalidUUIDList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid UUID list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid UUID values.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of UUID values.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewUUIDEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		if !uuidRegexp.MatchString(enum[i]) {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
-		}
-
-		flag.enum = append(flag.enum, enum[i])
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -94,12 +130,62 @@ func NewUUIDEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(
+				NewUsageError(InvalidUUIDOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported UUID detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(enum, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum UUID values.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(enum, ", ")))
+			panic(
+				NewUsageError(InvalidUUIDOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported UUID detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(enum, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum UUID values.",
+					),
+			)
 		}
 	})
+
+	for i := range enum {
+		if !uuidRegexp.MatchString(enum[i]) {
+			NewDefinitionError(InvalidUUIDOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid UUID enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid UUID values.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid UUID values such as '550e8400-e29b-41d4-a716-446655440000'.",
+				).
+				Fatal()
+		}
+	}
 
 	return flag
 }

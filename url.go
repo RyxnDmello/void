@@ -7,12 +7,14 @@ import (
 	"strings"
 )
 
-func NewURLFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	InvalidURL       ErrorCode = "INVALID_URL"
+	InvalidURLList   ErrorCode = "INVALID_URL_LIST"
+	InvalidURLOption ErrorCode = "INVALID_URL_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewURLFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, *url.URL:
 			return v
@@ -25,22 +27,46 @@ func NewURLFlag(name string) *Flag {
 				return url
 			}
 
-			panic(fmt.Sprintf("'%s' Not A Valid URL", v))
+			panic(
+				NewUsageError(InvalidURL, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid URL detected.",
+					).
+					WithExpected(
+						"Expected a valid URL.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid URL such as 'https://example.com'.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A URL", flag.name))
+			panic(
+				NewUsageError(InvalidURL, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid URL detected.",
+					).
+					WithExpected(
+						"Expected a valid URL.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid URL.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewURLListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, []*url.URL:
 			return v
@@ -61,7 +87,22 @@ func NewURLListFlag(name string) *Flag {
 				url, err := url.Parse(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("'%s' Not A Valid URL", v[i]))
+					panic(
+						NewUsageError(InvalidURLList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid URL detected.",
+							).
+							WithExpected(
+								"Expected a valid URL within the URL list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid URL: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid URLs such as 'https://example.com'.",
+							),
+					)
 				}
 
 				urls = append(urls, url)
@@ -70,43 +111,38 @@ func NewURLListFlag(name string) *Flag {
 			return urls
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of URLs", flag.name))
+			panic(
+				NewUsageError(InvalidURLList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid URL list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid URLs.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of URLs.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewURLEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		url, err := url.Parse(enum[i])
-
-		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
-		}
-
-		flag.enum = append(flag.enum, url)
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(*url.URL).String())
+		for i := range enum {
+			options = append(options, enum[i].(*url.URL).String())
 		}
 
 		switch v := value.(type) {
@@ -115,32 +151,133 @@ func NewURLEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidURLOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported URL detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum URLs.",
+					),
+			)
 
 		case url.URL:
 			if slices.Contains(options, v.String()) {
 				return &v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidURLOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported URL detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum URLs.",
+					),
+			)
 
 		case string:
 			url, err := url.Parse(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("'%s' Not A Valid URL", v))
+				panic(
+					NewUsageError(InvalidURL, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid URL detected.",
+						).
+						WithExpected(
+							"Expected a valid URL.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Provide a valid URL such as 'https://example.com'.",
+						),
+				)
 			}
 
 			if slices.Contains(options, url.String()) {
 				return url
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidURLOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported URL detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", url.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum URLs.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidURLOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported URL detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum URLs.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		url, err := url.Parse(enum[i])
+
+		if err != nil {
+			NewDefinitionError(InvalidURLOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid URL enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid URLs.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid URLs such as 'https://example.com'.",
+				).
+				Fatal()
+		}
+
+		flag.enum = append(flag.enum, url)
+	}
 
 	return flag
 }

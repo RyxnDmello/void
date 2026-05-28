@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-type commandView interface {
-	Name() string
-	Tagline() string
-	Description() string
-	Path() []string
-}
-
 type Context struct {
 	command   commandView
 	flags     map[string]any
@@ -44,7 +37,7 @@ func (context *Context) Args() map[string]any {
 }
 
 func (context *Context) GetArg(name string) any {
-	name = MustParseArgumentName(name)
+	name = mustParseArgumentName(name)
 
 	if len(context.arguments) == 0 {
 		return nil
@@ -128,7 +121,7 @@ func (context *Context) Flags() map[string]any {
 }
 
 func (context *Context) GetFlag(name string) any {
-	name = MustParseFlagName(name)
+	name = mustParseFlagName(name)
 
 	if len(context.flags) == 0 {
 		return nil

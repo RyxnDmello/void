@@ -8,16 +8,18 @@ import (
 )
 
 const (
+	InvalidPort       ErrorCode = "INVALID_PORT"
+	InvalidPortList   ErrorCode = "INVALID_PORT_LIST"
+	InvalidPortOption ErrorCode = "INVALID_PORT_OPTION"
+)
+
+const (
 	minPort = 1
 	maxPort = 65535
 )
 
 func NewPortFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -27,35 +29,89 @@ func NewPortFlag(name string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("A Network Port Must Be Between %v And %v", minPort, maxPort))
+			panic(
+				NewUsageError(InvalidPort, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid network port detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+					).
+					WithReceived(
+						fmt.Sprintf("Received port: %d", v),
+					).
+					WithSuggestion(
+						"Provide a valid network port within the supported range.",
+					),
+			)
 
 		case string:
 			port, err := strconv.Atoi(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("A Network Port Must Be An Integer Between %v And %v", minPort, maxPort))
+				panic(
+					NewUsageError(InvalidPort, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid network port detected.",
+						).
+						WithExpected(
+							fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Provide a valid integer network port.",
+						),
+				)
 			}
 
 			if minPort <= port && port <= maxPort {
 				return port
 			}
 
-			panic(fmt.Sprintf("A Network Port Must Be An Integer Between %v And %v", minPort, maxPort))
+			panic(
+				NewUsageError(InvalidPort, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid network port detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+					).
+					WithReceived(
+						fmt.Sprintf("Received port: %d", port),
+					).
+					WithSuggestion(
+						"Provide a valid network port within the supported range.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Network Port", flag.name))
+			panic(
+				NewUsageError(InvalidPort, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid network port detected.",
+					).
+					WithExpected(
+						"Expected a valid network port.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid integer network port.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewPortListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -65,7 +121,22 @@ func NewPortListFlag(name string) *Flag {
 
 			for i := range v {
 				if v[i] < minPort || v[i] > maxPort {
-					panic(fmt.Sprintf("'%v' Not A Valid Port Between %v And %v", v[i], minPort, maxPort))
+					panic(
+						NewUsageError(InvalidPortList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid network port detected.",
+							).
+							WithExpected(
+								fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+							).
+							WithReceived(
+								fmt.Sprintf("Received port: %d", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid network ports within the supported range.",
+							),
+					)
 				}
 
 				ports = append(ports, v[i])
@@ -80,11 +151,41 @@ func NewPortListFlag(name string) *Flag {
 				port, err := strconv.Atoi(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("'%s' Not A Valid Port. Must Be An Integer Between %v And %v", v[i], minPort, maxPort))
+					panic(
+						NewUsageError(InvalidPortList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid network port detected.",
+							).
+							WithExpected(
+								fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+							).
+							WithReceived(
+								fmt.Sprintf("Received value: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid integer network ports.",
+							),
+					)
 				}
 
 				if port < minPort || port > maxPort {
-					panic(fmt.Sprintf("'%v' Not A Valid Port Between %v And %v", v[i], minPort, maxPort))
+					panic(
+						NewUsageError(InvalidPortList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid network port detected.",
+							).
+							WithExpected(
+								fmt.Sprintf("Expected an integer between %d and %d.", minPort, maxPort),
+							).
+							WithReceived(
+								fmt.Sprintf("Received port: %d", port),
+							).
+							WithSuggestion(
+								"Provide valid network ports within the supported range.",
+							),
+					)
 				}
 
 				ports = append(ports, port)
@@ -93,36 +194,33 @@ func NewPortListFlag(name string) *Flag {
 			return ports
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Network Ports", flag.name))
+			panic(
+				NewUsageError(InvalidPortList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid network port list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid network ports.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of integer network ports.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewPortEnumFlag(name string, enum []int) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		if enum[i] < minPort || enum[i] > maxPort {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%v'", flag.name, enum[i]))
-		}
-
-		flag.enum = append(flag.enum, enum[i])
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
+
+		_, enum := flag.Enumerable()
 
 		options := make([]string, 0)
 
@@ -137,19 +235,84 @@ func NewPortEnumFlag(name string, enum []int) *Flag {
 			port, err := strconv.Atoi(raw)
 
 			if err != nil {
-				panic(fmt.Sprintf("Flag '%s' Must Be An Integer", flag.name))
+				panic(
+					NewUsageError(InvalidPortOption, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid network port detected.",
+						).
+						WithExpected(
+							"Expected a valid integer network port.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", raw),
+						).
+						WithSuggestion(
+							"Provide a valid integer network port.",
+						),
+				)
 			}
 
 			if slices.Contains(options, raw) {
 				return port
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidPortOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported network port detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received port: %d", port),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ports.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidPortOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported network port detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum network ports.",
+					),
+			)
 		}
 	})
+
+	for i := range enum {
+		if enum[i] < minPort || enum[i] > maxPort {
+			NewDefinitionError(InvalidPortOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid network port enum value detected.",
+				).
+				WithExpected(
+					fmt.Sprintf("All enum options must be between %d and %d.", minPort, maxPort),
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum port: %d", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid network ports within the supported range.",
+				).
+				Fatal()
+		}
+	}
 
 	return flag
 }

@@ -18,26 +18,45 @@ const (
 )
 
 const (
-	InvalidFlag                     ErrorCode = "INVALID_FLAG"
-	UnknownCommand                  ErrorCode = "UNKNOWN_COMMAND"
-	CommandRequired                 ErrorCode = "COMMAND_REQUIRED"
-	InvalidFlagFormat               ErrorCode = "INVALID_FLAG_FORMAT"
-	InvalidCommandRoute             ErrorCode = "INVALID_COMMAND_ROUTE"
-	TooManyCommandFlags             ErrorCode = "TOO_MANY_COMMAND_FLAGS"
-	TooManyCommandArguments         ErrorCode = "TOO_MANY_COMMAND_ARGUMENTS"
-	TooManyCommandFlagValues        ErrorCode = "TOO_MANY_COMMAND_FLAG_VALUES"
-	MissingRequiredCommandFlags     ErrorCode = "MISSING_REQUIRED_COMMAND_FLAGS"
-	MissingRequiredCommandArguments ErrorCode = "MISSING_REQUIRED_COMMAND_ARGUMENTS"
-
-	CommandPathRequired           ErrorCode = "COMMAND_PATH_REQUIRED"
+	TooManyFlags                  ErrorCode = "TOO_MANY_FLAGS"
+	CommandUnknown                ErrorCode = "UNKNOWN_COMMAND"
+	CommandRequired               ErrorCode = "COMMAND_REQUIRED"
+	TooManyArguments              ErrorCode = "TOO_MANY_ARGUMENTS"
 	CommandNameRequired           ErrorCode = "COMMAND_NAME_REQUIRED"
+	CommandPathRequired           ErrorCode = "COMMAND_PATH_REQUIRED"
+	CommandRouteInvalid           ErrorCode = "COMMAND_ROUTE_INVALID"
+	DuplicateCommandPath          ErrorCode = "DUPLICATE_COMMAND_PATH"
 	DuplicateCommandFlag          ErrorCode = "DUPLICATE_COMMAND_FLAG"
-	DuplicateCommandRoute         ErrorCode = "DUPLICATE_COMMAND_ROUTE"
+	MissingRequiredFlags          ErrorCode = "MISSING_REQUIRED_FLAGS"
 	CommandTaglineRequired        ErrorCode = "COMMAND_TAGLINE_REQUIRED"
+	MissingRequiredArguments      ErrorCode = "MISSING_REQUIRED_ARGUMENTS"
 	DuplicateCommandArgument      ErrorCode = "DUPLICATE_COMMAND_ARGUMENT"
 	MultipleVariadicArguments     ErrorCode = "MULTIPLE_VARIADIC_ARGUMENTS"
 	CommandDescriptionRequired    ErrorCode = "COMMAND_DESCRIPTION_REQUIRED"
 	CommandExecuteHandlerRequired ErrorCode = "COMMAND_EXECUTE_HANDLER_REQUIRED"
+)
+
+const (
+	ArgumentNameInvalid         ErrorCode = "ARGUMENT_NAME_INVALID"
+	ArgumentNameRequired        ErrorCode = "ARGUMENT_NAME_REQUIRED"
+	ArgumentEnumRequired        ErrorCode = "ARGUMENT_ENUM_REQUIRED"
+	ArgumentValueRequired       ErrorCode = "ARGUMENT_VALUE_REQUIRED"
+	ArgumentTaglineRequired     ErrorCode = "ARGUMENT_TAGLINE_REQUIRED"
+	ArgumentDescriptionRequired ErrorCode = "ARGUMENT_DESCRIPTION_REQUIRED"
+	ArgumentTypeHandlerRequired ErrorCode = "ARGUMENT_TYPE_HANDLER_REQUIRED"
+)
+
+const (
+	FlagInvalid             ErrorCode = "FLAG_INVALID"
+	FlagNameInvalid         ErrorCode = "FLAG_NAME_INVALID"
+	FlagNameRequired        ErrorCode = "FLAG_NAME_REQUIRED"
+	FlagEnumRequired        ErrorCode = "FLAG_ENUM_REQUIRED"
+	FlagValueRequired       ErrorCode = "FLAG_VALUE_REQUIRED"
+	FlagFormatInvalid       ErrorCode = "INVALID_FLAG_FORMAT"
+	TooManyFlagValues       ErrorCode = "TOO_MANY_FLAG_VALUES"
+	FlagTaglineRequired     ErrorCode = "FLAG_TAGLINE_REQUIRED"
+	FlagDescriptionRequired ErrorCode = "FLAG_DESCRIPTION_REQUIRED"
+	FlagTypeHandlerRequired ErrorCode = "FLAG_TYPE_HANDLER_REQUIRED"
 )
 
 type VoidError struct {
@@ -48,9 +67,9 @@ type VoidError struct {
 	expected   *string
 	received   *string
 	suggestion *string
-	command    *Command
-	argument   *Argument
-	flag       *Flag
+	command    commandView
+	argument   argumentView
+	flag       flagView
 	metadata   map[string]string
 }
 
@@ -106,17 +125,17 @@ func (voidError *VoidError) WithSuggestion(suggestion string) *VoidError {
 	return voidError
 }
 
-func (voidError *VoidError) WithCommand(command *Command) *VoidError {
+func (voidError *VoidError) WithCommand(command commandView) *VoidError {
 	voidError.command = command
 	return voidError
 }
 
-func (voidError *VoidError) WithArgument(argument *Argument) *VoidError {
+func (voidError *VoidError) WithArgument(argument argumentView) *VoidError {
 	voidError.argument = argument
 	return voidError
 }
 
-func (voidError *VoidError) WithFlag(flag *Flag) *VoidError {
+func (voidError *VoidError) WithFlag(flag flagView) *VoidError {
 	voidError.flag = flag
 	return voidError
 }

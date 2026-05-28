@@ -7,12 +7,14 @@ import (
 	"strings"
 )
 
-func NewEmailFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	InvalidEmailAddress       ErrorCode = "INVALID_EMAIL_ADDRESS"
+	InvalidEmailAddressList   ErrorCode = "INVALID_EMAIL_ADDRESS_LIST"
+	InvalidEmailAddressOption ErrorCode = "INVALID_EMAIL_ADDRESS_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewEmailFlag(name string) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, *mail.Address:
 			return v
@@ -21,92 +23,126 @@ func NewEmailFlag(name string) *Flag {
 			return &v
 
 		case string:
-			if mail, err := mail.ParseAddress(v); err == nil {
-				return mail
+			if address, err := mail.ParseAddress(v); err == nil {
+				return address
 			}
 
-			panic(fmt.Sprintf("'%s' Not A Valid Email Address", v))
+			panic(
+				NewUsageError(InvalidEmailAddress, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid email address detected.",
+					).
+					WithExpected(
+						"Expected a valid email address.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide a valid email address such as 'user@example.com'.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Valid Email Address", flag.name))
+			panic(
+				NewUsageError(InvalidEmailAddress, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid email address detected.",
+					).
+					WithExpected(
+						"Expected a valid email address.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid email address.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewEmailListFlag(name string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil, []*mail.Address:
 			return v
 
 		case []mail.Address:
-			mails := make([]*mail.Address, 0)
+			addresses := make([]*mail.Address, 0)
 
 			for i := range v {
-				mails = append(mails, &v[i])
+				addresses = append(addresses, &v[i])
 			}
 
-			return mails
+			return addresses
 
 		case []string:
-			mails := make([]*mail.Address, 0)
+			addresses := make([]*mail.Address, 0)
 
 			for i := range v {
-				mail, err := mail.ParseAddress(v[i])
+				address, err := mail.ParseAddress(v[i])
 
 				if err != nil {
-					panic(fmt.Sprintf("'%s' Not A Valid Email Address", v[i]))
+					panic(
+						NewUsageError(InvalidEmailAddressList, nil).
+							WithFlag(flag).
+							WithMessage(
+								"Invalid email address detected.",
+							).
+							WithExpected(
+								"Expected a valid email address within the email address list.",
+							).
+							WithReceived(
+								fmt.Sprintf("Invalid email address: %s", v[i]),
+							).
+							WithSuggestion(
+								"Provide valid email addresses such as 'user@example.com'.",
+							),
+					)
 				}
 
-				mails = append(mails, mail)
+				addresses = append(addresses, address)
 			}
 
-			return mails
+			return addresses
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of Email Addresses", flag.name))
+			panic(
+				NewUsageError(InvalidEmailAddressList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid email address list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid email addresses.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of email addresses.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewEmailEnumFlag(name string, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		mail, err := mail.ParseAddress(enum[i])
-
-		if err != nil {
-			panic(fmt.Sprintf("Flag '%s' Has An Invalid Option: '%s'", flag.name, enum[i]))
-		}
-
-		flag.enum = append(flag.enum, mail)
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(*mail.Address).String())
+		for i := range enum {
+			options = append(options, enum[i].(*mail.Address).String())
 		}
 
 		switch v := value.(type) {
@@ -115,32 +151,133 @@ func NewEmailEnumFlag(name string, enum []string) *Flag {
 				return v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidEmailAddressOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported email address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum email addresses.",
+					),
+			)
 
 		case mail.Address:
 			if slices.Contains(options, v.String()) {
 				return &v
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidEmailAddressOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported email address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum email addresses.",
+					),
+			)
 
 		case string:
-			mail, err := mail.ParseAddress(v)
+			address, err := mail.ParseAddress(v)
 
 			if err != nil {
-				panic(fmt.Sprintf("'%s' Not A Valid Email Address", v))
+				panic(
+					NewUsageError(InvalidEmailAddress, nil).
+						WithFlag(flag).
+						WithMessage(
+							"Invalid email address detected.",
+						).
+						WithExpected(
+							"Expected a valid email address.",
+						).
+						WithReceived(
+							fmt.Sprintf("Received value: %s", v),
+						).
+						WithSuggestion(
+							"Provide a valid email address such as 'user@example.com'.",
+						),
+				)
 			}
 
-			if slices.Contains(options, mail.String()) {
-				return mail
+			if slices.Contains(options, address.String()) {
+				return address
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidEmailAddressOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported email address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", address.String()),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum email addresses.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidEmailAddressOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported email address detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum email addresses.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		address, err := mail.ParseAddress(enum[i])
+
+		if err != nil {
+			NewDefinitionError(InvalidEmailAddressOption, nil).
+				WithFlag(flag).
+				WithMessage(
+					"Invalid email enum value detected.",
+				).
+				WithExpected(
+					"All enum options must be valid email addresses.",
+				).
+				WithReceived(
+					fmt.Sprintf("Invalid enum value: %s", enum[i]),
+				).
+				WithSuggestion(
+					"Provide valid email addresses such as 'user@example.com'.",
+				).
+				Fatal()
+		}
+
+		flag.enum = append(flag.enum, address)
+	}
 
 	return flag
 }

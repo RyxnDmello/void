@@ -8,12 +8,16 @@ import (
 	"strings"
 )
 
-func NewFileFlag(name string, create, force bool) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
+const (
+	FileNotFound          ErrorCode = "FILE_NOT_FOUND"
+	InvalidFilePath       ErrorCode = "INVALID_FILE_PATH"
+	FailedToCreateFile    ErrorCode = "FAILED_TO_CREATE_FILE"
+	InvalidFilePathList   ErrorCode = "INVALID_FILE_PATH_LIST"
+	InvalidFilePathOption ErrorCode = "INVALID_FILE_PATH_OPTION"
+)
 
-	flag.HandleConvert(func(value any) any {
+func NewFileFlag(name string, create, force bool) *Flag {
+	return NewCustomFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -22,19 +26,28 @@ func NewFileFlag(name string, create, force bool) *Flag {
 			return mustParseFile(v, create, force)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A Path To A File", v))
+			panic(
+				NewUsageError(InvalidFilePath, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid file path detected.",
+					).
+					WithExpected(
+						"Expected a valid file path.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid file path.",
+					),
+			)
 		}
 	})
-
-	return flag
 }
 
 func NewFileListFlag(name string, create, force bool) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	flag.HandleConvert(func(value any) any {
+	return NewCustomListFlag(name, func(flag flagView, value any) any {
 		switch v := value.(type) {
 		case nil:
 			return v
@@ -49,37 +62,38 @@ func NewFileListFlag(name string, create, force bool) *Flag {
 			return paths
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be A List Of File Paths", v))
+			panic(
+				NewUsageError(InvalidFilePathList, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Invalid file path list detected.",
+					).
+					WithExpected(
+						"Expected a list of valid file paths.",
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide a valid list of file paths.",
+					),
+			)
 		}
 	})
-
-	flag.variadic = true
-
-	return flag
 }
 
 func NewFileEnumFlag(name string, create, force bool, enum []string) *Flag {
-	flag := NewCustomFlag(name, func(value any) any {
-		return nil
-	})
-
-	if len(enum) == 0 {
-		panic(fmt.Sprintf("Flag '%s' Must Have At Least 1 Option", flag.name))
-	}
-
-	for i := range enum {
-		flag.enum = append(flag.enum, mustParseFile(enum[i], create, force))
-	}
-
-	flag.HandleConvert(func(value any) any {
+	flag := NewCustomEnumFlag(name, enum, func(flag flagView, value any) any {
 		if value == nil {
 			return nil
 		}
 
+		_, enum := flag.Enumerable()
+
 		options := make([]string, 0)
 
-		for i := range flag.enum {
-			options = append(options, flag.enum[i].(string))
+		for i := range enum {
+			options = append(options, enum[i].(string))
 		}
 
 		switch v := value.(type) {
@@ -88,12 +102,48 @@ func NewFileEnumFlag(name string, create, force bool, enum []string) *Flag {
 				return path
 			}
 
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidFilePathOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported file path detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Expected one of: %s", strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %s", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum file paths.",
+					),
+			)
 
 		default:
-			panic(fmt.Sprintf("Flag '%s' Must Be One Of %s", flag.name, strings.Join(options, ", ")))
+			panic(
+				NewUsageError(InvalidFilePathOption, nil).
+					WithFlag(flag).
+					WithMessage(
+						"Unsupported file path detected.",
+					).
+					WithExpected(
+						fmt.Sprintf("Flag '%s' must receive one of: %s", flag.Name(), strings.Join(options, ", ")),
+					).
+					WithReceived(
+						fmt.Sprintf("Received value: %v", v),
+					).
+					WithSuggestion(
+						"Provide one of the supported enum file paths.",
+					),
+			)
 		}
 	})
+
+	flag.enum = make([]any, 0)
+
+	for i := range enum {
+		flag.enum = append(flag.enum, mustParseFile(enum[i], create, force))
+	}
 
 	return flag
 }
@@ -102,7 +152,20 @@ func mustParseFile(value string, create, force bool) string {
 	path, err := filepath.Abs(value)
 
 	if err != nil {
-		panic(fmt.Sprintf("'%s' Not A Valid Path", value))
+		NewUsageError(InvalidFilePath, err).
+			WithMessage(
+				"Invalid file path detected.",
+			).
+			WithExpected(
+				"Expected a valid file path.",
+			).
+			WithReceived(
+				fmt.Sprintf("Received path: %s", value),
+			).
+			WithSuggestion(
+				"Provide a valid file path.",
+			).
+			Fatal()
 	}
 
 	if create && force {
@@ -117,7 +180,20 @@ func mustParseFile(value string, create, force bool) string {
 				return path
 			}
 
-			panic(fmt.Sprintf("Path '%s' Exists As A Directory", path))
+			NewUsageError(InvalidFilePath, nil).
+				WithMessage(
+					"Path is a directory.",
+				).
+				WithExpected(
+					"Expected the provided path to resolve to a file.",
+				).
+				WithReceived(
+					fmt.Sprintf("Received directory path: %s", path),
+				).
+				WithSuggestion(
+					"Provide a valid file path instead of a directory path.",
+				).
+				Fatal()
 		}
 
 		return mustCreateFile(path)
@@ -128,28 +204,95 @@ func mustParseFile(value string, create, force bool) string {
 			return path
 		}
 
-		panic(fmt.Sprintf("Path '%s' Exists As A Directory", path))
+		NewUsageError(InvalidFilePath, nil).
+			WithMessage(
+				"Path is a directory.",
+			).
+			WithExpected(
+				"Expected the provided path to resolve to a file.",
+			).
+			WithReceived(
+				fmt.Sprintf("Received directory path: %s", path),
+			).
+			WithSuggestion(
+				"Provide a valid file path instead of a directory path.",
+			).
+			Fatal()
 	}
 
-	panic(fmt.Sprintf("'%s' File Path Cannot Be Found", path))
+	NewUsageError(FileNotFound, nil).
+		WithMessage(
+			"File could not be found.",
+		).
+		WithExpected(
+			"Expected an existing file path.",
+		).
+		WithReceived(
+			fmt.Sprintf("File path not found: %s", path),
+		).
+		WithSuggestion(
+			"Provide a valid existing file path or enable file creation.",
+		).
+		Fatal()
+
+	return ""
 }
 
 func mustCreateFile(path string) string {
-	failure := fmt.Sprintf("Failed To Create File At Path '%s'", path)
-
 	if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
-		panic(failure)
+		NewRuntimeError(FailedToCreateFile, err).
+			WithMessage(
+				"Failed to create file directory structure.",
+			).
+			WithExpected(
+				"The parent directory structure should be created successfully.",
+			).
+			WithReceived(
+				fmt.Sprintf("Failed to create file at path '%s'.", path),
+			).
+			WithSuggestion(
+				"Ensure the process has permission to create directories at the target location.",
+			).
+			Fatal()
 	}
 
 	file, err := os.Create(path)
 
 	if err != nil {
-		panic(failure)
+		NewRuntimeError(FailedToCreateFile, err).
+			WithMessage(
+				"Failed to create file.",
+			).
+			WithExpected(
+				"The file should be created successfully.",
+			).
+			WithReceived(
+				fmt.Sprintf("Failed to create file at path '%s'.", path),
+			).
+			WithSuggestion(
+				"Ensure the process has permission to create files at the target location.",
+			).
+			Fatal()
 	}
 
 	if err := file.Close(); err == nil {
 		return path
 	}
 
-	panic(failure)
+	NewRuntimeError(FailedToCreateFile, err).
+		WithMessage(
+			"Failed to finalize file creation.",
+		).
+		WithExpected(
+			"The created file should close successfully.",
+		).
+		WithReceived(
+			fmt.Sprintf("Failed to create file at path '%s'.", path),
+		).
+		WithSuggestion(
+			"Ensure the file system is writable and accessible.",
+		).
+		Fatal()
+
+	return ""
 }
